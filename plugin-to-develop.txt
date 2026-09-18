@@ -1,0 +1,23 @@
+***** List of Plugins to be developed for NOS 0.0.1
+
+- NOS Importer -> Import posts, pages, comments, custom fields, categories, tags and more from a NOS export file.
+- SMTP PLugin -> The Ultimate Forever Free Mail SMTP Plugin for WordPress.
+- 2 Factor Auth -> 
+- google signin :: plugin && [fe:component]
+- Microsoft Signin :: plugin && [fe:component]
+- Custom Fields
+- Google Maps Plugin
+- Contact Form to any API
+- RSS importer
+- AI provider for Open AI
+- AI provider for Anthropic
+- AI provider for Google Gemini
+- Custom API Endpoints
+- AWS S3 Storage Plugin
+- Google Drive Storage
+- Cloudinary Storage
+- Session Manager
+- Device Detector [fe:component]
+- Traffic -> Full featured monitoring & analytics for NOS APIs.
+- Coupons -> manage target users, price , associated subscription plans
+- Taxes -> manage and configure different tax rates and regimes

@@ -1,0 +1,1580 @@
+*** Core Grammar Categories ***
+
+Expressions 		-> calculations/conditions
+Statements			-> executable actions
+Control workflow	-> branching/loops
+Data 				-> variables/payloads
+Events				-> triggers
+Pipelines			-> sequencing
+Components			-> reusable modules
+
+
+*** High-Level DSL Grammar ***
+
+-> Root Structure
+<program> ::= <workflow>
+
+-> Workflow
+<workflow> ::= {
+    "type": "workflow",
+    "nodes": <node_list>
+}
+
+
+-> Node List
+<node_list> ::= [ <node>* ]
+
+
+-> Generic Node
+<node> ::= <action_node>
+         | <control_node>
+         | <event_node>
+         | <data_node>
+
+
+
+-> Action Node
+<action_node> ::= {
+    "type": <action_type>,
+    "inputs": <object>,
+    "outputs": <object>?
+}
+
+
+-> Control Node
+<control_node> ::= <if_node>
+                 | <loop_node>
+                 | <parallel_node>
+
+
+
+
+-> If Node
+<if_node> ::= {
+    "type": "if",
+    "condition": <expression>,
+    "then": <node_list>,
+    "else": <node_list>?
+}
+
+
+-> Loop Node
+<loop_node> ::= {
+    "type": "loop",
+    "iterator": <identifier>,
+    "collection": <expression>,
+    "body": <node_list>
+}
+
+
+
+*** Expression Grammar ***
+
+-> Expressions
+<expression> ::= <literal>
+               | <variable>
+               | <binary_expression>
+               | <function_call>
+
+
+-> Binary Expression
+<binary_expression> ::= {
+    "left": <expression>,
+    "operator": <operator>,
+    "right": <expression>
+}
+
+
+-> Operators
+<operator> ::= "=="
+             | "!="
+             | ">"
+             | "<"
+             | ">="
+             | "<="
+             | "+"
+             | "-"
+             | "*"
+             | "/"
+             | "AND"
+             | "OR"
+
+
+-> Event Nodes
+<event_node> ::= {
+    "type": "event",
+    "event": <identifier>,
+    "handler": <node_list>
+}
+
+
+-> Function Calls
+<function_call> ::= {
+    "type": "call",
+    "function": <identifier>,
+    "args": [ <expression>* ]
+}
+
+
+
+-> Types
+<type> ::= string
+         | number
+         | boolean
+         | object
+         | array
+         | null
+
+
+
+**** Task Type *****
+
+action 		-> Performs a single operation. eg. send SMS, send email, charge payment, upload file, publish article
+
+{
+  "type": "action",
+  "capability": "communication.email.send"
+}
+
+condition 	-> Branches execution.
+
+{
+  "type": "condition",
+  "expression": "$user.isSubscribed == true",
+
+  "onTrue": "send_email",
+  "onFalse": "exit"
+}
+
+choice		-> Multi-path branching.
+
+{
+  "type": "choice",
+
+  "expression": "$paymentMethod",
+
+  "cases": {
+    "momo": "hubtel_payment",
+    "card": "paystack_payment"
+  },
+
+  "default": "unsupported"
+}
+
+loop 		-> Iterates over a collection.
+
+{
+  "type": "loop",
+
+  "collection": "$subscribers",
+
+  "body": "send_email",
+
+  "next": "log_result"
+}
+
+parallel 	-> Runs multiple tasks concurrently.
+
+{
+  "type": "parallel",
+
+  "tasks": [
+    "send_sms",
+    "send_email",
+    "send_push"
+  ],
+
+  "next": "audit_log"
+}
+
+transform	-> Transforms data.
+
+{
+  "type": "transform",
+
+  "operation": "filter",
+
+  "input": "$users",
+
+  "output": "activeUsers"
+}
+
+query		-> Reads data. eg. database query, API query, cache lookup
+
+{
+  "type": "query",
+
+  "source": "users",
+
+  "filter": {
+    "active": true
+  },
+
+  "output": "users"
+}
+
+command		-> Changes state. eg. CRUD
+
+{
+  "type": "command",
+
+  "command": "user.create"
+}
+
+Events	-> Publishes an event.
+
+{
+  "type": "event",
+
+  "name": "article.published"
+}
+
+
+wait		-> Pauses execution.
+
+{
+  "type": "wait",
+
+  "duration": "10m"
+}
+
+schedule	-> Schedules future execution.
+
+{
+  "type": "schedule",
+
+  "cron": "0 8 * * *"
+}
+
+subflow	 	-> Executes another workflow.
+
+{
+  "type": "subflow",
+
+  "workflow": "send_notifications"
+}
+
+
+script 	   -> Executes custom expressions.
+
+{
+  "type": "script",
+
+  "language": "expr",
+
+  "code": "price * quantity"
+}
+
+terminate  	-> Stops execution.
+
+{
+  "type": "terminate"
+}
+
+noop	   -> Does nothing. Useful during visual editing.
+
+{
+  "type": "noop"
+}
+
+
+
+**** Action Task Type *****
+
+-> an action task type will depend on a system event 
+-> define data sources (either internal to the system core or external)
+-> define other inputs
+-> define outputs
+-> can also define other task types 
+
+-> Action Task Node
+<action_node> ::= {
+    "type": "action",
+    "capability": <string>,
+    "on_event": <system_event>?,
+    "data_sources": [ <data_source>* ]?,
+    "prompt_config": <prompt_config>?,
+    "inputs": <object>,
+    "outputs": <object>?,
+    "next_tasks": [ <task_reference>* ]?
+}
+
+-> Prompt Configuration (Handles display and user interaction)
+<prompt_config> ::= {
+    "message": <string> | <expression>,
+    "interaction_type": "display" | "input" | "menu",
+    "input_validation": <expression>?,
+    "timeout_ms": <number>?
+}
+
+-> System Event Hook
+<system_event> ::= {
+    "event_name": <string>,
+    "trigger_condition": <expression>?
+}
+
+-> Data Source Definition
+<data_source> ::= {
+    "name": <string>,
+    "scope": "internal" | "external",
+    "provider": <string>,
+    "config": <object>?
+}
+
+-> Task Reference (For defining or linking other task types)
+<task_reference> ::= {
+    "task_id": <string>,
+    "execute_condition": <expression>?
+}
+
+
+** Example **
+
+{
+  "type": "action",
+  "capability": "finance.payment.process",
+  
+  "on_event": {
+    "event_name": "checkout.completed",
+    "trigger_condition": {
+      "left": "$order.total",
+      "operator": ">",
+      "right": 0
+    }
+  },
+  
+  "data_sources": [
+    {
+      "name": "crm_db",
+      "scope": "external",
+      "provider": "postgresql",
+      "config": {
+        "connection_string": "env.CRM_DB_URL"
+      }
+    },
+    {
+      "name": "system_cache",
+      "scope": "internal",
+      "provider": "redis"
+    }
+  ],
+  
+  "inputs": {
+    "amount": "$order.total",
+    "currency": "$order.currency",
+    "customer_id": "$user.id"
+  },
+  
+  "outputs": {
+    "transaction_id": "$response.tx_id",
+    "status": "$response.status"
+  },
+  
+  "next_tasks": [
+    {
+      "task_id": "send_receipt_email",
+      "execute_condition": {
+        "left": "$response.status",
+        "operator": "==",
+        "right": "success"
+      }
+    }
+  ]
+}
+
+
+
+
+**** Condition Task Type *****
+
+-> Condition Node
+<condition_node> ::= {
+    "type": "condition",
+    "expression": <expression>,
+    "onTrue": <task_reference>,
+    "onFalse": <task_reference>?
+}
+
+-> Task Reference
+<task_reference> ::= <string>
+
+
+** Example **
+
+{
+  "type": "condition",
+  "expression": {
+    "left": "$user.isSubscribed",
+    "operator": "==",
+    "right": true
+  },
+  "onTrue": "send_premium_newsletter",
+  "onFalse": "trigger_upsell_flow"
+}
+
+OR
+
+{
+  "type": "condition",
+  "expression": "$user.isSubscribed == true",
+  "onTrue": "send_email",
+  "onFalse": "exit"
+}
+
+
+**** Choice Task Type *****
+
+-> Switch Node
+<switch_node> ::= {
+    "type": "switch",
+    "expression": <expression>,
+    "cases": <case_map>,
+    "default": <task_reference>?
+}
+
+-> Case Map
+<case_map> ::= { ( <string> : <task_reference> )* }
+
+-> Task Reference
+<task_reference> ::= <string>
+
+
+** Example **
+
+{
+  "type": "switch",
+  "expression": "$paymentMethod",
+  "cases": {
+    "momo": "hubtel_payment",
+    "card": "paystack_payment",
+    "crypto": "coinbase_payment"
+  },
+  "default": "unsupported_method_flow"
+}
+
+
+OR ...
+
+
+
+***** Loop Task Type *****
+
+-> Loop Node
+<loop_node> ::= {
+    "type": "loop",
+    "iterator": <string>,
+    "collection": <expression>,
+    "body": <task_reference>,
+    "next": <task_reference>?
+}
+
+-> Task Reference
+<task_reference> ::= <string>
+
+
+** Example **
+
+{
+  "type": "loop",
+  "collection": "$subscribers",
+  "iterator": "subscriber",
+  "body": "send_email",
+  "next": "log_result"
+}
+
+
+***** Parallel Task Type *****
+
+-> Parallel Node
+<parallel_node> ::= {
+    "type": "parallel",
+    "tasks": [ <task_reference>* ],
+    "strategy": "all" | "any",
+    "next": <task_reference>?
+}
+
+-> Task Reference
+<task_reference> ::= <string>
+
+
+** Example **
+
+{
+  "type": "parallel",
+  "tasks": [
+    "send_sms",
+    "send_email",
+    "send_push"
+  ],
+  "strategy": "all",
+  "next": "audit_log"
+}
+
+
+***** Transform Task Type *****
+
+-> Transform Node
+<transform_node> ::= {
+    "type": "transform",
+    "operation": "filter" | "map" | "project" | "merge",
+    "input": <expression>,
+    "mapping": <object> | <string>?,
+    "output": <string>
+}
+
+
+** Example **
+
+1. Example A: Functional Transformation (e.g., Filtering an Array)
+This matches your exact source format, where a built-in operation filters a collection based on a condition.
+
+{
+  "type": "transform",
+  "operation": "filter",
+  "input": "$users",
+  "mapping": "$item.active == true",
+  "output": "activeUsers"
+}
+
+
+2. Example B: Structural Projection (Schema Mapping)
+If you need to rewrite an API payload's keys to match a downstream system's expected schema, you can use a dictionary mapping:
+
+{
+  "type": "transform",
+  "operation": "project",
+  "input": "$api_response.data",
+  "mapping": {
+    "customer_id": "$input.id",
+    "full_name": "$input.attributes.name",
+    "contact_number": "$input.phone"
+  },
+  "output": "formattedCustomer"
+}
+
+
+***** Query Task Type *****
+
+-> Query Node
+<query_node> ::= {
+    "type": "query",
+    "source": <string>,
+    "filter": <filter_expression>,
+    "limit": <number>?,
+    "output": <string>
+}
+
+-> Filter Expression
+<filter_expression> ::= <object> | <expression>
+
+
+
+** Example **
+
+1. Example A: Database Lookups (Structured Filters)
+
+{
+  "type": "query",
+  "source": "users",
+  "filter": {
+    "active": true,
+    "country": "GH"
+  },
+  "limit": 50,
+  "output": "activeUsers"
+}
+
+
+2. Example B: API-Driven Lookups (Dynamic Expressions)
+
+{
+  "type": "query",
+  "source": "payment_gateway.transactions",
+  "filter": {
+    "left": "$transaction.status",
+    "operator": "==",
+    "right": "pending"
+  },
+  "output": "pendingPayments"
+}
+
+
+***** Command Task Type *****
+
+-> Command Node
+<command_node> ::= {
+    "type": "command",
+    "command": <string>,
+    "http_request": <http_request_config>?,
+    "output": <string>?
+}
+
+-> HTTP Request Config for http.* commands only
+<http_request_config> ::= {
+    "url": <expression>,
+    "auth": <http_auth_config>?,
+    "headers": <object>?,
+    "query": <object>?,
+    "body": <object> | <string>?,
+    "timeout": <number>?
+}
+
+-> HTTP Auth Config
+<http_auth_config> ::= {
+    "type": "basic",
+    "username": <expression>,
+    "password": <expression>
+}
+
+
+** Example **
+
+1. Example A: Explicit Domain Actions (Task/Action Oriented)
+
+{
+  "type": "command",
+  "command": "user.create",
+  "payload": {
+    "username": "$new_user.username",
+    "email": "$new_user.email",
+    "role": "subscriber"
+  },
+  "output": "createdUser"
+}
+
+
+2. Example B: Standard CRUD State Manipulation
+
+
+{
+  "type": "command",
+  "command": "database.update",
+  "payload": {
+    "target": "accounts",
+    "where": { "id": "$account.id" },
+    "set": { "status": "active" }
+  }
+}
+
+
+
+***** Events Task Type *****
+
+-> Event Emit Node
+<event_emit_node> ::= {
+    "type": "event",
+    "name": <string>,
+    "payload": <object>?,
+    "next": <task_reference>?
+}
+
+-> Task Reference
+<task_reference> ::= <string>
+
+
+
+** Example **
+
+{
+  "type": "event",
+  "name": "article.published",
+  "payload": {
+    "article_id": "$article.id",
+    "author_id": "$article.author_id",
+    "timestamp": "$sys.timestamp"
+  },
+  "next": "update_analytics_dashboard"
+}
+
+
+
+***** Wait Task Type *****
+
+-> Wait Node
+<wait_node> ::= {
+    "type": "wait",
+    "duration": <string>?,
+    "until": <expression>?,
+    "next": <task_reference>?
+}
+
+-> Task Reference
+<task_reference> ::= <string>
+
+
+** Example **
+
+1. Example A: Relative Duration (Time Delta)
+
+{
+  "type": "wait",
+  "duration": "10m",
+  "next": "send_followup_sms"
+}
+
+
+2. Example B: Absolute Time (Timestamp / Expression)
+
+{
+  "type": "wait",
+  "until": "$order.subscription_renewal_date",
+  "next": "charge_payment"
+}
+
+
+
+***** Schedule Task Type *****
+
+-> Schedule Node
+<schedule_node> ::= {
+    "type": "schedule",
+    "cron": <string>,
+    "timezone": <string>?,
+    "body": <task_reference>,
+    "enabled": <boolean>?
+}
+
+-> Task Reference
+<task_reference> ::= <string>
+
+
+
+** Example **
+
+{
+  "type": "schedule",
+  "cron": "0 8 * * *",
+  "timezone": "Africa/Accra",
+  "body": "send_notifications",
+  "enabled": true
+}
+
+
+
+***** Subflow Task Type *****
+
+
+-> Subflow Node
+<subflow_node> ::= {
+    "type": "subflow",
+    "workflow": <string>,
+    "wait_for_completion": <boolean>?,
+    "inputs": <object>?,
+    "output": <string> | [<string>, ...]
+}
+
+
+** Example **
+
+{
+  "type": "subflow",
+  "workflow": "send_notifications",
+  "wait_for_completion": true,
+  "inputs": {
+    "recipient_list": "$subscribers",
+    "alert_level": "critical"
+  },
+  "output": "notification_summary"
+}
+
+
+
+***** Script Task Type *****
+
+-> Script Node
+<script_node> ::= {
+    "type": "script",
+    "language": <string>,
+    "code": <string>,
+    "output": <string>?
+}
+
+
+** Example **
+
+1. Example A: Native Expression Evaluator (expr)
+
+{
+  "type": "script",
+  "language": "expr",
+  "code": "price * quantity",
+  "output": "totalLineItemCost"
+}
+
+
+2. Example B: Advanced Multi-Line Scripting (e.g., Lua, Python, JS)
+
+
+{
+  "type": "script",
+  "language": "lua",
+  "code": "local fee = 0.02;\nif input.amount > 1000 then\n  fee = 0.01;\nend\nreturn input.amount * fee;",
+  "output": "computedProcessingFee"
+}
+
+
+
+***** Terminate Task Type *****
+
+
+-> Terminate Node
+<terminate_node> ::= {
+    "type": "terminate",
+    "status": "success" | "failed" | "cancelled",
+    "error_code": <string>?,
+    "message": <expression>?
+}
+
+
+** Example **
+
+1. Example A: Graceful / Early Exit (Success Path)
+
+{
+  "type": "terminate",
+  "status": "success",
+  "message": "Workflow exited gracefully: User is already up to date."
+}
+
+
+2. Example B: Explicit Failure (Error Path)
+
+{
+  "type": "terminate",
+  "status": "failed",
+  "error_code": "PAYMENT_FRAUD_DETECTED",
+  "message": {
+    "left": "Transaction aborted for user: ",
+    "operator": "+",
+    "right": "$user.id"
+  }
+}
+
+
+
+
+***** Noop Task Type *****
+
+-> Noop Node
+<noop_node> ::= {
+    "type": "noop",
+    "id": <string>?,
+    "meta": <object>?
+}
+
+
+
+** Example **
+
+
+{
+  "type": "noop",
+  "id": "join_converge_point_01",
+  "meta": {
+    "label": "Wait for Branch Convergence",
+    "description": "Placeholder node to sync parallel execution streams safely."
+  }
+}
+
+
+
+
+****** Available System Commands - General *****
+
+-> http -> this command type requires the addition of extra props on the node that will encapsulate all possible options for an API call
+http.get
+http.post
+http.put
+http.delete
+
+-> entity
+[entity].create
+[entity].update
+[entity].delete
+[entity].get_all
+[entity].get_paginated
+
+-> Data Transformation & Encoding Commands
+
+data.transform <- This command type requires the addition of extra props on the node that will encapsulate all possible options for a data transformation alongside a transformation expression
+data.parse
+crypto.hash <- This command type requires the addition of extra props on the node that will encapsulate all possible options for a cryptographic operation alongside a transformation expression
+crypto.encrypt <- This command type requires the addition of extra props on the node that will encapsulate all possible options for a cryptographic operation alongside a transformation expression
+crypto.decrypt <- This command type requires the addition of extra props on the node that will encapsulate all possible options for a cryptographic operation alongside a transformation expression
+crypto.sign <- This command type requires the addition of extra props on the node that will encapsulate all possible options for a cryptographic operation alongside a transformation expression
+crypto.verify <- This command type requires the addition of extra props on the node that will encapsulate all possible options for a cryptographic operation alongside a transformation expression
+crypto.generate_keypair <- This command type requires the addition of extra props on the node that will encapsulate all possible options for a cryptographic operation alongside a transformation expression
+
+
+-> Advanced Data Parsing & Formatting
+
+data.xml_to_json <- This command type requires the addition of extra props on the node that will encapsulate all possible options for a data transformation alongside a transformation expression
+data.csv.parse
+data.validate
+
+
+-> Diagnostics & Audit Logging
+
+log -> mits structured logs to an external APM (like Datadog or ELK).
+log.info
+log.error
+log.warn
+
+audit.record -> Saves an immutable ledger entry for compliance (critical for fintech/payment orchestration).
+
+metric.increment -> Increment a stat counter (e.g., payments_processed).
+
+
+-> Dedicated Authentication & Identity
+
+auth.jwt.sign -> Generate and sign a JSON Web Token (requires a jwt_config block with payload and secret).
+auth.jwt.verify -> Validate an incoming token before allowing the workflow to proceed.
+auth.oauth.token -> Native command to handle the OAuth2 token exchange flow.
+
+
+-> File & Storage Operations
+
+fs.read
+fs.write
+
+s3.upload
+s3.download
+
+fs.delete
+fs.archive
+
+-> Messaging & Pub/Sub Commands
+
+mq.publish
+mq.consume
+
+
+-> Database Commands
+
+db.query
+db.execute
+
+
+-> Notifications & Alerting
+
+notify.email -> Required extra props-> to, subject, template_id
+notify.webhook ->
+notify.sms -> Required extra props -> template_id
+
+
+
+********** Sample Plugin DSL for Dynamic API endpoints **********
+
+-> db operation command
+
+[
+  {
+    "id": "verify_request",
+    "type": "condition",
+    "if": "request_body.contains('api_key')",
+    "then": "process_payload",
+    "else": "reject_request"
+  },
+  {
+    "id": "process_payload",
+    "type": "command",
+    "command": "entity.create",
+    "entity": "MerchantTransaction",
+    "payload": {
+      "raw_data": "request_body"
+    },
+    "output": "db_result"
+  },
+  {
+    "id": "finalize_response",
+    "type": "transform",
+    "input": "db_result",
+    "operation": "assign",
+    "output": "api_response"
+  },
+  {
+    "id": "reject_request",
+    "type": "terminate",
+    "status": "FAILURE",
+    "message": "Unauthorized entry payload"
+  }
+]
+
+api call command - POST
+
+[
+    {
+        "type": "noop",
+        "id": "payment_triggered",
+        "meta": { "label": "Triggered when a user wants to pay for an order" }
+    },
+    {
+        "type": "script",
+        "id": "calculate_fee",
+        "language": "expr",
+        "code": "0.2 * amount",
+        "output": "totalAmount"
+    },
+    {
+        "type": "command",
+        "id": "hubtel_initiate",
+        "command": "http.post",
+        "http_request": {
+            "url": "$hubtel_url",
+            "auth": {
+                "type": "basic",
+                "username": "$hubtel_client_id",
+                "password": "$hubtel_client_secret"
+            },
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "query": {
+                "trace_id": "ABC-12345",
+                "session": "$session_token"
+            },
+            "body": {
+                "totalAmount": "$totalAmount + 1.8",
+                "description": "SMS Account Topup",
+                "callbackUrl": "https://webhook.site/8376e625-6b48-492d-bad4-a93817f0ab6c",
+                "returnUrl": "http://pos.rhyoliteprime.com",
+                "merchantAccountNumber": "2037871",
+                "cancellationUrl": "http://pos.rhyoliteprime.com",
+                "clientReference": "30915fd4-41ff-4a70-a224-a507ca15a282"
+            },
+            "timeout": 600
+        },
+        "output": "payment_response"
+    },
+    {
+        "type": "terminate",
+        "id": "finalize_run",
+        "status": "success"
+    }
+]
+
+
+-> Simple API call command - GET
+
+[
+    {
+        "type": "noop",
+        "id": "fetch_triggered",
+        "meta": { "label": "Triggered when we want to fetch the weekly raffle" }
+    },
+    {
+        "type": "command",
+        "id": "nsaa_get_weekly",
+        "command": "http.get",
+        "http_request": {
+            "url": "https://nsaa-api.rhyoliteprime.com/api/v1/raffle/get-weekly"
+        },
+        "output": "raffle_response"
+    },
+    {
+        "type": "terminate",
+        "id": "finalize_run",
+        "status": "success"
+    }
+]
+
+
+-> Simple API call command without route param - GET
+
+[
+    {
+        "type": "noop",
+        "id": "fetch_triggered",
+        "meta": { "label": "Triggered when we want to fetch a specific post" }
+    },
+    {
+        "type": "command",
+        "id": "fetch_post",
+        "command": "http.get",
+        "http_request": {
+            "url": "https://jsonplaceholder.typicode.com/posts/$post_id"
+        },
+        "output": "post_response"
+    },
+    {
+        "type": "terminate",
+        "id": "finalize_run",
+        "status": "success"
+    }
+]
+
+-> API call command with multiple route params - GET
+
+
+-> API call command with request params and headers - GET
+
+[
+    {
+        "type": "noop",
+        "id": "fetch_balance_triggered",
+        "meta": { "label": "Triggered to fetch the session balance" }
+    },
+    {
+        "type": "command",
+        "id": "fetch_session_balance",
+        "command": "http.get",
+        "http_request": {
+            "url": "http://213.165.245.124:5109/api/v1/subscription/get-session-balance",
+            "query": {
+                "serviceId": "3bc86932-a4d1-475d-a1a9-6584e7eafc80",
+                "serviceType": "ussd"
+            },
+            "headers": {
+                "Private-Key": "e9e59eda-e5af-4ac7-8260-7f6c551e66b8"
+            }
+        },
+        "output": "balance_response"
+    },
+    {
+        "type": "terminate",
+        "id": "finalize_run",
+        "status": "success"
+    }
+]
+
+-> API call command with dynamic request params and headers - GET
+
+[
+    {
+        "type": "noop",
+        "id": "fetch_balance_triggered",
+        "meta": { "label": "Triggered to fetch the session balance" }
+    },
+    {
+        "type": "command",
+        "id": "fetch_session_balance",
+        "command": "http.get",
+        "http_request": {
+            "url": "http://213.165.245.124:5109/api/v1/subscription/get-session-balance",
+            "query": {
+                "serviceId": "$service_id",
+                "serviceType": "$service_type"
+            },
+            "headers": {
+                "Private-Key": "e9e59eda-e5af-4ac7-8260-7f6c551e66b8"
+            }
+        },
+        "output": "balance_response"
+    },
+    {
+        "type": "terminate",
+        "id": "finalize_run",
+        "status": "success"
+    }
+]
+
+-> API call command with dynamic request params, headers and explicit output definitions - GET
+
+[
+    {
+        "type": "noop",
+        "id": "fetch_balance_triggered",
+        "meta": { "label": "Triggered to fetch the session balance" }
+    },
+    {
+        "type": "command",
+        "id": "fetch_session_balance",
+        "command": "http.get",
+        "http_request": {
+            "url": "http://213.165.245.124:5109/api/v1/subscription/get-session-balance",
+            "query": {
+                "serviceId": "$service_id",
+                "serviceType": "$service_type"
+            },
+            "headers": {
+                "Private-Key": "e9e59eda-e5af-4ac7-8260-7f6c551e66b8"
+            }
+        },
+        "output": [
+            "result.accountBalance",
+            "message",
+            "success"
+        ]
+    },
+    {
+        "type": "terminate",
+        "id": "finalize_run",
+        "status": "success"
+    }
+]
+
+-> PAYMENT PLUGIN TYPE I
+
+Based on your BNF grammar and the provided task types, here is a complete, well-defined DSL plugin for a **Payment Orchestration Workflow**.
+
+This workflow handles both **Hubtel** and **Paystack**. It validates the incoming request, dynamically routes to the selected payment provider, handles provider-specific logic (like Basic Auth for Hubtel and currency conversion for Paystack), standardizes the response to extract the `checkout_url`, and emits an event for the frontend.
+
+### Payment Orchestration Plugin (JSON DSL)
+
+```json
+[
+  {
+    "type": "noop",
+    "id": "payment_initiated",
+    "meta": {
+      "label": "Triggered when frontend requests a payment checkout"
+    }
+  },
+  {
+    "type": "condition",
+    "id": "validate_payment_request",
+    "expression": {
+      "left": "$amount",
+      "operator": ">",
+      "right": 0
+    },
+    "onTrue": "route_payment_provider",
+    "onFalse": "reject_invalid_amount"
+  },
+  {
+    "type": "switch",
+    "id": "route_payment_provider",
+    "expression": "$payment_provider",
+    "cases": {
+      "hubtel": "initiate_hubtel_payment",
+      "paystack": "calculate_paystack_amount"
+    },
+    "default": "reject_unsupported_provider"
+  },
+
+  {
+    "type": "command",
+    "id": "initiate_hubtel_payment",
+    "command": "http.post",
+    "http_request": {
+      "url": "https://api.hubtel.com/v1/merchantaccount/merchants/$hubtel_merchant_id/receive/mobilemoney",
+      "auth": {
+        "type": "basic",
+        "username": "$HUBTEL_CLIENT_ID",
+        "password": "$HUBTEL_CLIENT_SECRET"
+      },
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "CustomerName": "$customer_name",
+        "CustomerMsisdn": "$customer_phone",
+        "CustomerEmail": "$customer_email",
+        "Channel": "mobile-money",
+        "Amount": "$amount",
+        "PrimaryCallbackUrl": "$webhook_url",
+        "ClientReference": "$order_id",
+        "Description": "Payment for Order"
+      },
+      "timeout": 30000
+    },
+    "output": "hubtel_raw_response"
+  },
+  {
+    "type": "transform",
+    "id": "format_hubtel_response",
+    "operation": "project",
+    "input": "$hubtel_raw_response",
+    "mapping": {
+      "checkout_url": "$input.Data.CheckoutUrl",
+      "provider": "hubtel",
+      "reference": "$order_id"
+    },
+    "output": "standardized_checkout_data"
+  },
+
+  {
+    "type": "script",
+    "id": "calculate_paystack_amount",
+    "language": "expr",
+    "code": "$amount * 100",
+    "output": "paystack_kobo_amount"
+  },
+  {
+    "type": "command",
+    "id": "initiate_paystack_payment",
+    "command": "http.post",
+    "http_request": {
+      "url": "https://api.paystack.co/transaction/initialize",
+      "headers": {
+        "Authorization": "Bearer $PAYSTACK_SECRET_KEY",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "$customer_email",
+        "amount": "$paystack_kobo_amount",
+        "currency": "$currency",
+        "reference": "$order_id",
+        "callback_url": "$webhook_url"
+      },
+      "timeout": 30000
+    },
+    "output": "paystack_raw_response"
+  },
+  {
+    "type": "transform",
+    "id": "format_paystack_response",
+    "operation": "project",
+    "input": "$paystack_raw_response",
+    "mapping": {
+      "checkout_url": "$input.data.authorization_url",
+      "provider": "paystack",
+      "reference": "$input.data.reference"
+    },
+    "output": "standardized_checkout_data"
+  },
+
+  {
+    "type": "event",
+    "id": "emit_checkout_url",
+    "name": "checkout.url.generated",
+    "payload": {
+      "url": "$standardized_checkout_data.checkout_url",
+      "provider": "$standardized_checkout_data.provider",
+      "order_id": "$standardized_checkout_data.reference"
+    },
+    "next": "terminate_success"
+  },
+
+  {
+    "type": "terminate",
+    "id": "terminate_success",
+    "status": "success",
+    "message": "Checkout URL generated successfully. Redirecting user."
+  },
+  {
+    "type": "terminate",
+    "id": "reject_invalid_amount",
+    "status": "failed",
+    "error_code": "INVALID_AMOUNT",
+    "message": "Payment amount must be greater than zero."
+  },
+  {
+    "type": "terminate",
+    "id": "reject_unsupported_provider",
+    "status": "failed",
+    "error_code": "UNSUPPORTED_PROVIDER",
+    "message": {
+      "left": "The payment provider '",
+      "operator": "+",
+      "right": "$payment_provider + ' is not supported.'"
+    }
+  }
+]
+```
+
+### Key Grammar Implementations Used:
+
+1. **`condition` Node**: Validates that the `$amount` variable is strictly greater than `0` using the `<binary_expression>` object format before proceeding.
+2. **`switch` Node**: Acts as a multi-path router. It evaluates the `$payment_provider` string and routes to the correct provider's initialization block.
+3. **`command` Node (`http.post`)**:
+   * **Hubtel**: Uses the `<http_auth_config>` block to pass Basic Authentication credentials securely via environment variables.
+   * **Paystack**: Because Paystack uses Bearer tokens (and the BNF strictly defines `auth` as `basic`), the token is correctly injected into the `headers` object.
+4. **`script` Node**: Paystack requires amounts in the lowest currency denomination (e.g., Kobo/Cents). A native `expr` script multiplies the base amount by 100 before the API call is made.
+5. **`transform` Node (`project`)**: Both providers return differently structured JSON payloads. The `project` operation maps the provider-specific API responses into a unified `standardized_checkout_data` schema so the frontend always receives a consistent payload.
+6. **`event` Node**: Publishes a `checkout.url.generated` event containing the unified payload, allowing frontend websockets or listeners to trigger the redirect.
+7. **`terminate` Node**: Handles explicit failure states (like invalid amounts or unsupported providers) utilizing the `<binary_expression>` concatenation to build dynamic error messages.
+
+
+
+-> PAYMENT PLUGIN TYPE II
+
+Here are two complete, DSL-aligned plugins: **Hubtel** (checkout/initiate) and **Paystack** (initialize transaction). Both POST a payload, map the provider response, and expose a **checkout URL** for the frontend.
+
+---
+
+### Hubtel – Initiate checkout (returns `checkoutUrl`)
+
+```json
+[
+  {
+    "type": "noop",
+    "id": "hubtel_checkout_triggered",
+    "meta": {
+      "label": "Start Hubtel checkout",
+      "description": "Triggered when the user pays for an order via Hubtel"
+    }
+  },
+  {
+    "type": "script",
+    "id": "hubtel_compute_amount",
+    "language": "expr",
+    "code": "amount",
+    "output": "totalAmount"
+  },
+  {
+    "type": "command",
+    "id": "hubtel_initiate_checkout",
+    "command": "http.post",
+    "http_request": {
+      "url": "$hubtel_checkout_url",
+      "auth": {
+        "type": "basic",
+        "username": "$hubtel_client_id",
+        "password": "$hubtel_client_secret"
+      },
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "totalAmount": "$totalAmount",
+        "description": "$description",
+        "callbackUrl": "$callback_url",
+        "returnUrl": "$return_url",
+        "cancellationUrl": "$cancellation_url",
+        "merchantAccountNumber": "$hubtel_merchant_account",
+        "clientReference": "$client_reference"
+      },
+      "timeout": 60000
+    },
+    "output": "hubtel_raw"
+  },
+  {
+    "type": "transform",
+    "id": "hubtel_map_checkout",
+    "operation": "project",
+    "input": "$hubtel_raw",
+    "mapping": {
+      "checkout_url": "$input.data.checkoutUrl",
+      "checkout_id": "$input.data.checkoutId",
+      "client_reference": "$input.data.clientReference",
+      "status": "$input.responseCode",
+      "message": "$input.message"
+    },
+    "output": "checkout"
+  },
+  {
+    "type": "condition",
+    "id": "hubtel_checkout_ok",
+    "expression": {
+      "left": "$checkout.checkout_url",
+      "operator": "!=",
+      "right": null
+    },
+    "onTrue": "hubtel_success",
+    "onFalse": "hubtel_fail"
+  },
+  {
+    "type": "terminate",
+    "id": "hubtel_success",
+    "status": "success",
+    "message": "Hubtel checkout URL ready"
+  },
+  {
+    "type": "terminate",
+    "id": "hubtel_fail",
+    "status": "failed",
+    "error_code": "HUBTEL_CHECKOUT_FAILED",
+    "message": "$checkout.message"
+  }
+]
+```
+
+**Expected frontend fields:** `checkout.checkout_url`, `checkout.checkout_id`, `checkout.client_reference`.
+
+**Typical inputs:** `amount`, `description`, `callback_url`, `return_url`, `cancellation_url`, `client_reference`, plus secrets: `hubtel_checkout_url`, `hubtel_client_id`, `hubtel_client_secret`, `hubtel_merchant_account`.
+
+---
+
+### Paystack – Initialize transaction (returns `authorization_url`)
+
+```json
+[
+  {
+    "type": "noop",
+    "id": "paystack_init_triggered",
+    "meta": {
+      "label": "Start Paystack checkout",
+      "description": "Triggered when the user pays for an order via Paystack"
+    }
+  },
+  {
+    "type": "script",
+    "id": "paystack_amount_kobo",
+    "language": "expr",
+    "code": "amount * 100",
+    "output": "amount_kobo"
+  },
+  {
+    "type": "command",
+    "id": "paystack_initialize",
+    "command": "http.post",
+    "http_request": {
+      "url": "https://api.paystack.co/transaction/initialize",
+      "headers": {
+        "Authorization": "Bearer $paystack_secret_key",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "$customer_email",
+        "amount": "$amount_kobo",
+        "currency": "$currency",
+        "reference": "$client_reference",
+        "callback_url": "$return_url",
+        "metadata": {
+          "order_id": "$order_id",
+          "customer_id": "$customer_id"
+        }
+      },
+      "timeout": 60000
+    },
+    "output": "paystack_raw"
+  },
+  {
+    "type": "transform",
+    "id": "paystack_map_checkout",
+    "operation": "project",
+    "input": "$paystack_raw",
+    "mapping": {
+      "checkout_url": "$input.data.authorization_url",
+      "access_code": "$input.data.access_code",
+      "reference": "$input.data.reference",
+      "status": "$input.status",
+      "message": "$input.message"
+    },
+    "output": "checkout"
+  },
+  {
+    "type": "condition",
+    "id": "paystack_checkout_ok",
+    "expression": {
+      "left": "$checkout.checkout_url",
+      "operator": "!=",
+      "right": null
+    },
+    "onTrue": "paystack_success",
+    "onFalse": "paystack_fail"
+  },
+  {
+    "type": "terminate",
+    "id": "paystack_success",
+    "status": "success",
+    "message": "Paystack authorization URL ready"
+  },
+  {
+    "type": "terminate",
+    "id": "paystack_fail",
+    "status": "failed",
+    "error_code": "PAYSTACK_INIT_FAILED",
+    "message": "$checkout.message"
+  }
+]
+```
+
+**Expected frontend fields:** `checkout.checkout_url` (`authorization_url`), `checkout.access_code`, `checkout.reference`.
+
+**Typical inputs:** `amount` (major units), `currency` (e.g. `GHS` / `NGN`), `customer_email`, `client_reference`, `return_url`, `order_id`, `customer_id`, plus `paystack_secret_key`.
+
+---
+
+### Shared contract for the frontend
+
+Both plugins end with a **`checkout`** object:
+
+| Field | Hubtel | Paystack |
+|--------|--------|----------|
+| Redirect URL | `checkout.checkout_url` | `checkout.checkout_url` |
+| Provider id | `checkout.checkout_id` | `checkout.access_code` |
+| Merchant ref | `checkout.client_reference` | `checkout.reference` |
+
+Redirect the browser to `checkout.checkout_url`. Verify later via webhook (`callbackUrl` / Paystack webhook) using the same reference, not only the return URL.
