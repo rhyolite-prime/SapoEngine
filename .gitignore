@@ -1,0 +1,40 @@
+# Build directories
+build/
+build-*/
+out/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+*.cmake.in.stamp
+
+# Compiled artifacts
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.d
+*.obj
+*.exe
+
+# Test / coverage / sanitizer artifacts
+Testing/
+coverage/
+*.gcda
+*.gcno
+*.profraw
+compile_commands.json
+compile_flags.txt
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+*~
+
+# Local, untracked scratch
+*.local.json
+.env
+sapo-config.local.json
