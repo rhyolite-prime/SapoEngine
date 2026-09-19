@@ -1,102 +1,169 @@
-#include "ExpressionEvaluator.hpp"
-#include "third_party/exprtk.hpp"
+#include "runtime/ExpressionEvaluator.hpp"
+
+#include "runtime/SapoError.hpp"
+#include "runtime/expressions/Value.hpp"
+#include "util/JsonPath.hpp"
+
 #include <algorithm>
 #include <cctype>
 
 namespace sapo::runtime {
 
-nlohmann::json ExpressionEvaluator::resolveValue(const std::string &value, const RuntimeContext &ctx) {
-    if (value.empty() || value.find('$') == std::string::npos) {
-        return value; // Plain literal — no resolution needed
-    }
+    namespace {
+        bool g_strict_by_default = true;
 
-    // Strip '$' sigils so ExprTk sees clean identifiers
-    std::string expr_string = value;
-    expr_string.erase(std::remove(expr_string.begin(), expr_string.end(), '$'),
-                      expr_string.end());
-
-    // Build a symbol table from all numeric context variables
-    exprtk::symbol_table<double> symbol_table;
-    auto all_vars = ctx.getAllVariables();
-    std::map<std::string, double> numeric_vars;
-
-    for (auto &[k, v] : all_vars.items()) {
-        if (v.is_number()) {
-            numeric_vars[k] = v.get<double>();
+        bool isNamespaced(const std::string &name, std::string &ns, std::string &key) {
+            const size_t dot = name.find('.');
+            if (dot == std::string::npos || dot == 0 || dot + 1 >= name.size()) return false;
+            ns = name.substr(0, dot);
+            key = name.substr(dot + 1);
+            static const std::vector<std::string> kKnown = {"env", "secret", "config", "provider"};
+            return std::find(kKnown.begin(), kKnown.end(), ns) != kKnown.end();
         }
-    }
-    for (auto &[k, v] : numeric_vars) {
-        symbol_table.add_variable(k, v);
-    }
-    symbol_table.add_constants();
+    } // namespace
 
-    exprtk::expression<double> expression;
-    expression.register_symbol_table(symbol_table);
-    exprtk::parser<double> expr_parser;
-
-    if (expr_parser.compile(expr_string, expression)) {
-        return expression.value(); // Resolved as a number
-    }
-
-    // ExprTk failed — treat as an exact variable lookup ($key -> context["key"])
-    if (value[0] == '$') {
-        bool is_exact = true;
-        for (size_t i = 1; i < value.length(); ++i) {
-            if (!std::isalnum(value[i]) && value[i] != '_') {
-                is_exact = false;
-                break;
+    bool ContextResolver::resolve(const std::string &name, nlohmann::json &out) const {
+        if (m_scope.locals.is_object() && m_scope.locals.contains(name)) {
+            out = m_scope.locals.at(name);
+            return true;
+        }
+        // A local object can also carry the dotted remainder: `item.qty`.
+        const size_t dot = name.find('.');
+        if (m_scope.locals.is_object() && dot != std::string::npos) {
+            const std::string head = name.substr(0, dot);
+            if (m_scope.locals.contains(head)) {
+                const nlohmann::json base = m_scope.locals.at(head);
+                if (auto found = sapo::util::getPath(base, name.substr(dot + 1)); found.has_value()) {
+                    out = *found;
+                    return true;
+                }
             }
         }
-        if (is_exact) {
-            std::string context_key = value.substr(1);
-            auto var = ctx.getVariable(context_key);
-            if (var.has_value()) {
-                return var.value();
+
+        if (m_scope.context != nullptr) {
+            if (auto value = m_scope.context->getByPath(name); value.has_value()) {
+                out = *value;
+                return true;
             }
         }
-    }
 
-    // String interpolation for embedded variables (e.g. "https://.../$post_id")
-    std::string result_str = value;
-    size_t pos = 0;
-    while ((pos = result_str.find('$', pos)) != std::string::npos) {
-        size_t end_pos = pos + 1;
-        while (end_pos < result_str.length() && (std::isalnum(result_str[end_pos]) || result_str[end_pos] == '_')) {
-            end_pos++;
-        }
-        std::string var_name = result_str.substr(pos + 1, end_pos - pos - 1);
-        auto var_val = ctx.getVariable(var_name);
-
-        if (var_val.has_value()) {
-            std::string replacement;
-            if (var_val->is_string()) {
-                replacement = var_val->get<std::string>();
-            } else if (var_val->is_number_integer()) {
-                replacement = std::to_string(var_val->get<long long>());
-            } else if (var_val->is_number_float()) {
-                replacement = std::to_string(var_val->get<double>());
-                // optional: strip trailing zeros for floats if desired
-            } else {
-                replacement = var_val->dump();
+        if (m_scope.bindings != nullptr) {
+            std::string ns, key;
+            if (isNamespaced(name, ns, key)) {
+                nlohmann::json resolved;
+                if (m_scope.bindings->lookup(ns, key, resolved)) {
+                    out = std::move(resolved);
+                    return true;
+                }
+                return false;
             }
-            result_str.replace(pos, end_pos - pos, replacement);
-            pos += replacement.length();
-        } else {
-            // Leave unresolved variable as-is
-            pos = end_pos;
+        }
+        return false;
+    }
+
+    void ExpressionEvaluator::setStrictByDefault(bool strict) { g_strict_by_default = strict; }
+
+    bool ExpressionEvaluator::strictByDefault() { return g_strict_by_default; }
+
+    nlohmann::json ExpressionEvaluator::resolveValue(const std::string &value, const RuntimeContext &ctx) {
+        EvaluationScope scope(ctx);
+        scope.options.strict = g_strict_by_default;
+        scope.bindings = defaultBindingProvider().get();
+        return resolveValue(value, scope);
+    }
+
+    nlohmann::json ExpressionEvaluator::resolveValue(const std::string &value, const EvaluationScope &scope) {
+        if (value.empty()) return nlohmann::json(value);
+        try {
+            return parser::Expression(value).resolve(ContextResolver(scope), scope.options);
+        } catch (const SapoError &error) {
+            throw SapoError(error.code(),
+                            scope.node_id.empty() ? error.message()
+                                                  : "[" + scope.node_id + "] " + error.message(),
+                            error.data(), scope.node_id);
         }
     }
 
-    return result_str;
-}
-
-nlohmann::json ExpressionEvaluator::resolveMap(const std::map<std::string, std::string> &map,
-                                               const RuntimeContext &ctx) {
-    nlohmann::json result = nlohmann::json::object();
-    for (const auto &[key, val] : map) {
-        result[key] = resolveValue(val, ctx);
+    nlohmann::json ExpressionEvaluator::resolveMap(const std::map<std::string, std::string> &map,
+                                                   const RuntimeContext &ctx) {
+        nlohmann::json result = nlohmann::json::object();
+        for (const auto &[key, val] : map) result[key] = resolveValue(val, ctx);
+        return result;
     }
-    return result;
-}
+
+    nlohmann::json ExpressionEvaluator::resolveMap(const parser::ExpressionObject &map, const EvaluationScope &scope) {
+        nlohmann::json result = nlohmann::json::object();
+        for (const auto &[key, expression] : map) {
+            if (expression.empty()) {
+                result[key] = nlohmann::json("");
+                continue;
+            }
+            result[key] = resolve(expression, scope);
+        }
+        return result;
+    }
+
+    nlohmann::json ExpressionEvaluator::resolveMap(const nlohmann::json &object, const EvaluationScope &scope) {
+        if (!object.is_object()) return object;
+        nlohmann::json result = nlohmann::json::object();
+        for (auto it = object.begin(); it != object.end(); ++it) {
+            if (it.value().is_string()) result[it.key()] = resolveValue(it.value().get<std::string>(), scope);
+            else if (it.value().is_object()) result[it.key()] = resolveMap(it.value(), scope);
+            else result[it.key()] = it.value();
+        }
+        return result;
+    }
+
+    nlohmann::json ExpressionEvaluator::evaluate(const std::string &expression, const EvaluationScope &scope) {
+        if (expression.empty()) return nullptr;
+        try {
+            return parser::Expression::fromExpression(expression).evaluate(ContextResolver(scope), scope.options);
+        } catch (const SapoError &error) {
+            throw SapoError(error.code(),
+                            scope.node_id.empty() ? error.message() : "[" + scope.node_id + "] " + error.message(),
+                            error.data(), scope.node_id);
+        }
+    }
+
+    nlohmann::json ExpressionEvaluator::evaluate(const std::string &expression, const RuntimeContext &ctx, bool strict) {
+        EvaluationScope scope(ctx);
+        scope.options.strict = strict;
+        scope.bindings = defaultBindingProvider().get();
+        return evaluate(expression, scope);
+    }
+
+    bool ExpressionEvaluator::evaluateBool(const std::string &expression, const EvaluationScope &scope) {
+        return sapo::v::truthy(evaluate(expression, scope));
+    }
+
+    bool ExpressionEvaluator::evaluateBool(const std::string &expression, const RuntimeContext &ctx, bool strict) {
+        return sapo::v::truthy(evaluate(expression, ctx, strict));
+    }
+
+    nlohmann::json ExpressionEvaluator::evaluate(const parser::Expression &expression, const EvaluationScope &scope) {
+        if (expression.empty()) return nullptr;
+        try {
+            return expression.evaluate(ContextResolver(scope), scope.options);
+        } catch (const SapoError &error) {
+            throw SapoError(error.code(),
+                            scope.node_id.empty() ? error.message() : "[" + scope.node_id + "] " + error.message(),
+                            error.data(), scope.node_id);
+        }
+    }
+
+    nlohmann::json ExpressionEvaluator::resolve(const parser::Expression &expression, const EvaluationScope &scope) {
+        if (expression.empty()) return nlohmann::json();
+        try {
+            return expression.resolve(ContextResolver(scope), scope.options);
+        } catch (const SapoError &error) {
+            throw SapoError(error.code(),
+                            scope.node_id.empty() ? error.message() : "[" + scope.node_id + "] " + error.message(),
+                            error.data(), scope.node_id);
+        }
+    }
+
+    bool ExpressionEvaluator::evaluateBool(const parser::Expression &expression, const EvaluationScope &scope) {
+        return sapo::v::truthy(evaluate(expression, scope));
+    }
 
 } // namespace sapo::runtime
