@@ -148,6 +148,40 @@ namespace sapo::parser {
                 return toExpression(*value);
             }
 
+            /// Predicate fields (`condition`, `when`, `while`, `input_validation`, …)
+            /// are SEL *programs*: `amount > 100` is a comparison, never the literal
+            /// text "amount > 100". Structured `{left, operator, right}` objects keep
+            /// their canonical form, so both spellings of the grammar work.
+            [[nodiscard]] Expression predicate(std::initializer_list<const char *> names) const {
+                const json *value = find(names);
+                return value == nullptr ? Expression() : toPredicate(*value);
+            }
+
+            [[nodiscard]] std::optional<Expression> optionalPredicate(std::initializer_list<const char *> names) const {
+                const json *value = find(names);
+                if (value == nullptr || value->is_null()) return std::nullopt;
+                return toPredicate(*value);
+            }
+
+            /// Like `predicate`, but a source that is not valid SEL stays a template
+            /// (`wait.until` also accepts an absolute timestamp or a `$var` holding one).
+            [[nodiscard]] Expression softPredicate(std::initializer_list<const char *> names) const {
+                const json *value = find(names);
+                if (value == nullptr || value->is_null()) return Expression();
+                if (!value->is_string()) return toExpression(*value);
+                const std::string text = value->get<std::string>();
+                try {
+                    return Expression::fromExpression(text);
+                } catch (const runtime::SapoError &) {
+                    return Expression(text);
+                }
+            }
+
+            [[nodiscard]] static Expression toPredicate(const json &value) {
+                if (value.is_string()) return Expression::fromExpression(value.get<std::string>());
+                return toExpression(value);
+            }
+
             [[nodiscard]] std::vector<std::string> stringList(std::initializer_list<const char *> names) const {
                 std::vector<std::string> out;
                 const json *value = find(names);
@@ -299,7 +333,7 @@ namespace sapo::parser {
             node->operation = lower(fields.stringOr("assign", {"operation", "op", "mode"}));
             node->input = fields.expression({"input", "source", "from"});
             node->mapping = fields.templateOr(json::object(), {"mapping", "map", "template"});
-            node->predicate = fields.expression({"predicate", "where", "filter"});
+            node->predicate = fields.predicate({"predicate", "where", "filter"});
             node->output = fields.stringOr("", {"output", "output_key", "save_to", "to"});
             if (node->output.empty()) reject("transform node '" + id + "' requires an 'output' key");
             node->item_variable = stripSigil(fields.stringOr("item", {"item_variable", "as", "iterator"}));
@@ -453,7 +487,7 @@ namespace sapo::parser {
         NodePtr buildWait(Fields &fields, const std::string &id) {
             auto node = std::make_shared<WaitNode>();
             node->duration = fields.optionalString({"duration", "for", "delay"});
-            node->until = fields.expression({"until", "condition", "until_condition"});
+            node->until = fields.softPredicate({"until", "condition", "until_condition"});
             if (!node->duration.has_value() && node->until.empty()) {
                 reject("wait node '" + id + "' needs either 'duration' or 'until'");
             }
@@ -506,8 +540,8 @@ namespace sapo::parser {
         NodePtr buildCondition(Fields &fields, const json &node_json, const std::string &id,
                                BodyExpander &expander) {
             auto node = std::make_shared<ConditionNode>();
-            node->expression = fields.expression({"expression", "condition", "when"});
-            if (node->expression.empty()) node->expression = fields.expression({"if"});
+            node->expression = fields.predicate({"expression", "condition", "when"});
+            if (node->expression.empty()) node->expression = fields.predicate({"if"});
             if (node->expression.empty()) {
                 reject("condition node '" + id + "' needs an 'expression' (or an 'if' / 'condition' string)");
             }
@@ -624,7 +658,7 @@ namespace sapo::parser {
                     Fields prompt_fields(*prompt, prompt_used);
                     config.message = prompt_fields.expression({"message", "text"});
                     config.interaction_type = lower(prompt_fields.stringOr("input", {"interaction_type", "type", "mode"}));
-                    config.input_validation = prompt_fields.optionalExpression({"input_validation", "validation"});
+                    config.input_validation = prompt_fields.optionalPredicate({"input_validation", "validation"});
                     if (auto timeout = prompt_fields.intOr(-1, {"timeout_ms", "timeout"}); timeout >= 0) {
                         config.timeout_ms = timeout;
                     }
@@ -656,7 +690,7 @@ namespace sapo::parser {
                 std::set<std::string> event_used;
                 Fields event_fields(*event, event_used);
                 system_event.event_name = event_fields.requireString({"event_name", "event", "name"}, id + ".on_event");
-                system_event.trigger_condition = event_fields.optionalExpression({"trigger_condition", "when", "condition"});
+                system_event.trigger_condition = event_fields.optionalPredicate({"trigger_condition", "when", "condition"});
                 system_event.handler = event_fields.optionalString({"handler", "target", "jump_to"});
                 for (auto it = event->begin(); it != event->end(); ++it) {
                     if (!event_used.count(it.key())) {
@@ -704,7 +738,7 @@ namespace sapo::parser {
                         std::set<std::string> ref_used;
                         Fields ref_fields(item, ref_used);
                         reference.task_id = ref_fields.requireString({"task_id", "node", "target"}, id + ".next_tasks[]");
-                        reference.execute_condition = ref_fields.optionalExpression({"execute_condition", "when", "condition"});
+                        reference.execute_condition = ref_fields.optionalPredicate({"execute_condition", "when", "condition"});
                     } else {
                         reject("action node '" + id + "': next_tasks entries must be node ids or objects");
                     }
@@ -731,7 +765,7 @@ namespace sapo::parser {
             auto node = std::make_shared<LoopNode>();
             node->collection = fields.expression({"collection", "items", "over", "each"});
             node->count = fields.expression({"count", "times", "repeat"});
-            node->condition = fields.expression({"while", "condition", "until_done"});
+            node->condition = fields.predicate({"while", "condition", "until_done"});
             node->iterator = stripSigil(fields.stringOr("item", {"iterator", "as", "item_variable"}));
             node->index = stripSigil(fields.stringOr("index", {"index", "index_variable", "index_name"}));
             if (const json *body = fields.find({"body", "steps", "tasks"}); body != nullptr) {
@@ -758,7 +792,7 @@ namespace sapo::parser {
             if (node->action != "break" && node->action != "continue") {
                 reject("loop_control node '" + id + "' action must be 'break' or 'continue'");
             }
-            node->when = fields.optionalExpression({"when", "if"});
+            node->when = fields.optionalPredicate({"when", "if"});
             node->loop = fields.optionalString({"loop", "loop_id"});
             return node;
         }

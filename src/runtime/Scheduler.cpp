@@ -354,6 +354,7 @@ namespace sapo::runtime {
                     {"timezone", timezone},
                     {"workflow", workflow},
                     {"node_id", node_id},
+                    {"entry_node", entry_node},
                     {"input", input},
                     {"enabled", enabled},
                     {"catch_up", catch_up},
@@ -370,6 +371,7 @@ namespace sapo::runtime {
         job.timezone = json_value.value("timezone", "UTC");
         job.workflow = json_value.value("workflow", "");
         job.node_id = json_value.value("node_id", "");
+        job.entry_node = json_value.value("entry_node", "");
         if (json_value.contains("input")) job.input = json_value["input"];
         job.enabled = json_value.value("enabled", true);
         job.catch_up = json_value.value("catch_up", false);

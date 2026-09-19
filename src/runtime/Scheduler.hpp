@@ -80,6 +80,7 @@ namespace sapo::runtime {
         std::string timezone{"UTC"};
         std::string workflow;              // workflow id to start…
         std::string node_id;               // …or the scheduling node (for `schedule` tasks)
+        std::string entry_node;            // node inside `workflow` to start at (0-based entry override)
         nlohmann::json input = nlohmann::json::object();
         bool enabled{true};
         /// Fire every missed occurrence (bounded by max_catch_up) instead of
