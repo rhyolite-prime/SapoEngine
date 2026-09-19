@@ -147,6 +147,11 @@ namespace sapo::runtime {
 
     std::vector<std::string> VirtualMachine::start() {
         m_problems.clear();
+        m_starting = true;
+        struct StartingGuard {
+            bool &flag;
+            ~StartingGuard() { flag = false; }
+        } guard{m_starting};
 
         // 1. provider configuration (T3.2)
         std::optional<config::ProviderConfigStore> loaded_config;
@@ -207,8 +212,31 @@ namespace sapo::runtime {
             m_services.applySecretRedaction();
         }
 
-        // 2. blueprints
+        // 2. blueprints: the explicit directory wins, then anything the config asks
+        // for (`workflows.directory`, `workflows.files`) so a deployment can be wired
+        // entirely from sapo-config.json.
         if (!m_workflow_directory.empty()) addBlueprintDirectory(m_workflow_directory);
+        if (m_services.provider_config != nullptr) {
+            const json document = m_services.provider_config->document();
+            if (document.is_object() && document.contains("workflows") && document["workflows"].is_object()) {
+                const json &workflows = document["workflows"];
+                if (workflows.contains("directory") && workflows["directory"].is_string()) {
+                    const auto directory = workflows["directory"].get<std::string>();
+                    if (!directory.empty() && directory != m_workflow_directory) addBlueprintDirectory(directory);
+                }
+                if (workflows.contains("files") && workflows["files"].is_array()) {
+                    for (const auto &file : workflows["files"]) {
+                        if (file.is_string()) {
+                            try {
+                                addBlueprintFile(file.get<std::string>());
+                            } catch (const std::exception &error) {
+                                m_problems.push_back("workflows.files: " + std::string(error.what()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // 3. wire the interpreter into the services (subflows, events, timers)
         m_interpreter = std::make_unique<Interpreter>(m_services, &tasks::TaskRegistry::defaults());
@@ -247,7 +275,10 @@ namespace sapo::runtime {
     }
 
     void VirtualMachine::ensureStarted() {
-        if (!m_started) start();
+        // `start()` itself registers blueprints (config `workflows.directory`), and
+        // those go through the public add* calls — so a start already in progress
+        // must not re-enter.
+        if (!m_started && !m_starting) start();
     }
 
     std::string VirtualMachine::addBlueprintText(const std::string &text, const std::string &origin) {

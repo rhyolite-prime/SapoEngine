@@ -1,0 +1,95 @@
+{
+  "name": "examples.agent_commission_batch",
+  "version": "1.0",
+  "description": "T2.3/T2.6 showcase: walk the day's agent transactions, pay each commission with retry, keep going when a payout fails, and summarise for the operations dashboard. The `http.post` calls need a transport (build with -DSAPO_ENABLE_CPR=ON); without one every payout takes the catch branch, which is also a legitimate thing to test.",
+  "defaults": { "payout_total": 0, "paid": 0, "failed": 0 },
+  "nodes": [
+    {
+      "id": "load_batch",
+      "type": "noop",
+      "label": "The batch is passed in as session input by the scheduler that starts this workflow",
+      "assign": { "batch": "$transactions" }
+    },
+    {
+      "id": "each_agent",
+      "type": "loop",
+      "collection": "$batch",
+      "iterator": "agent",
+      "index": "position",
+      "max_iterations": "500",
+      "body": [
+        {
+          "id": "check_quota",
+          "type": "if",
+          "condition": "agent.commission > 0",
+          "then": [
+            {
+              "id": "payout_guard",
+              "type": "try",
+              "body": [
+                {
+                  "id": "pay",
+                  "type": "command",
+                  "command": "http.post",
+                  "http_request": {
+                    "url": "https://api.example.test/v1/payouts",
+                    "body": { "agent": "${agent.id}", "amount": "${agent.commission}", "currency": "GHS" },
+                    "timeout": "8s"
+                  },
+                  "retry": { "max_attempts": 4, "backoff_ms": 400, "multiplier": 2, "jitter": 0.2 },
+                  "output": { "payout_reference": "$.body.reference" },
+                  "next": "record_payment"
+                },
+                {
+                  "id": "record_payment",
+                  "type": "noop",
+                  "assign": {
+                    "payout_total": "${payout_total + agent.commission}",
+                    "paid": "${paid + 1}",
+                    "receipts": "${push(coalesce(receipts, []), {agent: agent.id, reference: payout_reference})}"
+                  }
+                }
+              ],
+              "catch": [
+                {
+                  "id": "record_failure",
+                  "type": "noop",
+                  "assign": {
+                    "failed": "${failed + 1}",
+                    "failed_agents": "${push(coalesce(failed_agents, []), agent.id)}",
+                    "last_error": "$error.code"
+                  }
+                }
+              ]
+            }
+          ],
+          "else": [
+            { "id": "skip_zero", "type": "noop", "assign": { "skipped": "${coalesce(skipped, 0) + 1}" } }
+          ]
+        }
+      ],
+      "next": "summarise"
+    },
+    {
+      "id": "summarise",
+      "type": "transform",
+      "op": "map",
+      "input": "$failed_agents",
+      "mapping": { "agent": "$item", "state": "payout_failed" },
+      "output": "failure_rows",
+      "next": "finish"
+    },
+    {
+      "id": "finish",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "paid": "$paid",
+        "payout_total": "$payout_total",
+        "failed": "$failed",
+        "receipts": "${coalesce(receipts, [])}",
+        "failures": "${coalesce(failure_rows, [])}"
+      }
+    }
+  ]
+}

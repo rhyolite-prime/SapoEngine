@@ -57,6 +57,10 @@ namespace sapo::runtime {
 
         explicit WorkflowRegistry(parser::ParseOptions options = {}, ClockPtr clock = defaultClock());
 
+        /// Hosts (and `sapoc --strict`) may tighten parsing after construction.
+        void setParseOptions(parser::ParseOptions options) { m_options = options; }
+        [[nodiscard]] const parser::ParseOptions &parseOptions() const { return m_options; }
+
         /// Registers an already-parsed workflow. Id defaults to `metadata.name`.
         std::string add(parser::ParsedWorkflow workflow, std::string id = {}, std::string origin = {});
         std::string loadJsonText(const std::string &text, std::string id = {}, std::string origin = "<inline>");

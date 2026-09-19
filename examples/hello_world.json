@@ -1,0 +1,22 @@
+{
+  "name": "examples.hello_world",
+  "version": "1.0",
+  "description": "Smallest useful blueprint: greet a caller and terminate. Run with `sapoc run examples/hello_world.json --var msisdn=233201234567`.",
+  "nodes": [
+    {
+      "id": "greet",
+      "type": "noop",
+      "label": "Build the greeting",
+      "assign": {
+        "greeting": "Hello ${msisdn}",
+        "now_ms": "${now()}"
+      }
+    },
+    {
+      "id": "finish",
+      "type": "terminate",
+      "status": "success",
+      "output": { "greeting": "$greeting" }
+    }
+  ]
+}

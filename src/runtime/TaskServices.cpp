@@ -2,6 +2,8 @@
 //  Sapo Engine — service composition.
 //
 #include "runtime/TaskServices.hpp"
+
+#include "parser/WorkflowParser.hpp"
 #include "runtime/SapoError.hpp"
 
 namespace sapo::runtime {
@@ -23,7 +25,11 @@ namespace sapo::runtime {
         services.events = std::make_shared<EventBus>();
         services.scheduler = std::make_shared<Scheduler>(services.clock);
         services.state_store = std::make_shared<InMemoryStateStore>();
-        services.workflows = std::make_shared<WorkflowRegistry>();
+        // The registry knows the capability set, so an unregistered
+        // `capability`/`command` is a parse-time error rather than a runtime surprise.
+        sapo::parser::ParseOptions parse;
+        parse.capabilities = services.capabilities.get();
+        services.workflows = std::make_shared<WorkflowRegistry>(parse, services.clock);
         services.pool = sharedWorkerPool();
         services.provider_config = std::make_shared<config::ProviderConfigStore>();
         return services;

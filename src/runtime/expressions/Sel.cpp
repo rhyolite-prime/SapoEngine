@@ -1438,6 +1438,8 @@ namespace sapo::expr {
                         for (size_t i = 1; i < a.size(); ++i) items.push_back(evalArg(a, i, s));
                         return items;
                     };
+                    // `append` is the spelling blueprint authors reach for first.
+                    f["append"] = f["push"];
                     f["merge"] = [](const std::vector<NodePtr> &a, EvalState &s) {
                         json out = json::object();
                         for (size_t i = 0; i < a.size(); ++i) {

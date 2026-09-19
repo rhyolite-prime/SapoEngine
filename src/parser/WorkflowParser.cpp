@@ -337,9 +337,10 @@ namespace sapo::parser {
                        "see docs/LIMITATIONS.md)");
             }
             if (fields.has({"code", "expr", "source"})) {
-                node->code = fields.expression({"code", "expr", "source"});
+                // A script body is a program, not an interpolation template.
+                node->code = fields.predicate({"code", "expr", "source"});
             } else {
-                node->code = fields.expression({"script"});
+                node->code = fields.predicate({"script"});
             }
             if (node->code.empty()) reject("script node '" + id + "' needs 'code'");
             node->output = fields.optionalString({"output", "output_key", "save_to"});
@@ -758,8 +759,23 @@ namespace sapo::parser {
                 }
             }
 
-            node->inputs = fields.templateOr(json::object(), {"inputs", "input", "params"});
+            node->inputs = fields.templateOr(json::object(), {"inputs", "input", "args", "params"});
             node->outputs = fields.templateOr(json::object(), {"outputs", "output_map", "returns"});
+            // `output` names where the capability result goes: an object maps context
+            // keys to result paths ({"sms_id": "$.message_id"}), a string stores the
+            // whole payload under that key.
+            if (node->outputs.empty()) {
+                if (const json *out = fields.find({"output"}); out != nullptr) {
+                    if (out->is_object()) {
+                        node->outputs = *out;
+                    } else if (out->is_string()) {
+                        node->outputs = json{{out->get<std::string>(), "$"}};
+                    } else {
+                        reject("action node '" + id +
+                               "': 'output' must name a context key or map keys to result paths");
+                    }
+                }
+            }
 
             if (const json *next_tasks = fields.find({"next_tasks"}); next_tasks != nullptr && next_tasks->is_array()) {
                 for (const auto &item : *next_tasks) {

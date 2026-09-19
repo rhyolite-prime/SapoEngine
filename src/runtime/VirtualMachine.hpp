@@ -156,6 +156,7 @@ namespace sapo::runtime {
         std::string m_workflow_directory;
         std::vector<std::string> m_problems;
         bool m_started{false};
+        bool m_starting{false};
     };
 
 } // namespace sapo::runtime

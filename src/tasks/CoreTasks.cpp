@@ -107,6 +107,19 @@ namespace sapo::tasks {
     json TransformTask::apply(const parser::TransformNode &node, const json &input, ExecutionContext &execution) {
         const std::string &operation = node.operation;
 
+        // Per-row scope: the row is the item, the position is the index, and both are
+        // published under the node's own (renamable) variable names.
+        const std::string item_name = node.item_variable.empty() ? std::string("item") : node.item_variable;
+        const std::string index_name = node.index_variable.empty() ? std::string("index") : node.index_variable;
+        auto scope_for = [&](const json &row, int64_t row_index, const json &extra = json::object()) {
+            json bound = extra.is_object() ? extra : json::object();
+            bound[item_name] = row;
+            bound["$" + item_name] = row;
+            bound[index_name] = row_index;
+            bound["$" + index_name] = row_index;
+            return rowScope(execution, row, row_index, bound);
+        };
+
         if (operation == "assign" || operation == "set" || operation == "copy") {
             json value = input;
             if (value.is_null() && node.mapping.is_object() && !node.mapping.empty()) {
@@ -136,7 +149,7 @@ namespace sapo::tasks {
             json out = json::array();
             int64_t index = 0;
             for (const auto &row : rows) {
-                if (predicateTrue(node.predicate, rowScope(execution, row, index))) out.push_back(row);
+                if (predicateTrue(node.predicate, scope_for(row, index))) out.push_back(row);
                 ++index;
             }
             return out;
@@ -146,16 +159,15 @@ namespace sapo::tasks {
             json out = json::array();
             int64_t index = 0;
             for (const auto &row : rows) {
-                const auto scope = rowScope(execution, row, index);
+                const auto scope = scope_for(row, index);
                 if (node.mapping.is_object() && !node.mapping.empty()) {
-                    out.push_back(resolveObjectTemplate(node.mapping, execution, true));
                     // Projection entries are expressions over the row:
                     json projected = json::object();
                     for (auto it = node.mapping.begin(); it != node.mapping.end(); ++it) {
                         projected[it.key()] = runtime::ExpressionEvaluator::resolveValue(
                             it.value().is_string() ? it.value().get<std::string>() : it.value().dump(), scope);
                     }
-                    out.back() = std::move(projected);
+                    out.push_back(std::move(projected));
                 } else if (!node.predicate.empty()) {
                     out.push_back(runtime::ExpressionEvaluator::evaluate(node.predicate, scope));
                 } else {
@@ -198,7 +210,7 @@ namespace sapo::tasks {
             const auto key_expression = node.mapping.begin().value();
             int64_t index = 0;
             for (const auto &row : rows) {
-                const auto scope = rowScope(execution, row, index);
+                const auto scope = scope_for(row, index);
                 const json key = runtime::ExpressionEvaluator::resolveValue(
                     key_expression.is_string() ? key_expression.get<std::string>() : key_expression.dump(), scope);
                 std::string name = key.is_string() ? key.get<std::string>() : key.dump();
@@ -230,7 +242,7 @@ namespace sapo::tasks {
                 if (!key_field.empty()) {
                     key = util::getPath(row, key_field).value_or(json());
                 } else if (!node.predicate.empty()) {
-                    key = runtime::ExpressionEvaluator::evaluate(node.predicate, rowScope(execution, row, index));
+                    key = runtime::ExpressionEvaluator::evaluate(node.predicate, scope_for(row, index));
                 } else {
                     key = row;
                 }
@@ -272,7 +284,7 @@ namespace sapo::tasks {
             }
             int64_t index = 0;
             for (const auto &row : rows) {
-                auto scope = rowScope(execution, row, index, json{{"accumulator", accumulator}, {"acc", accumulator}});
+                auto scope = scope_for(row, index, json{{"accumulator", accumulator}, {"acc", accumulator}});
                 if (node.predicate.empty()) {
                     if (row.is_number() && accumulator.is_number()) accumulator = accumulator.get<double>() + row.get<double>();
                 } else {
@@ -294,7 +306,9 @@ namespace sapo::tasks {
         const auto &node = execution.as<parser::ScriptNode>();
         auto scope = execution.scope();
         for (const auto &[name, expression] : node.bindings) {
-            scope.locals[name] = runtime::ExpressionEvaluator::evaluate(parser::Expression(expression), scope);
+            // A binding is a program ("amount * 0.02"), not an interpolation template:
+            // wrapping it in parser::Expression would hand the raw text back.
+            scope.locals[name] = runtime::ExpressionEvaluator::evaluate(expression, scope);
         }
         // Both languages evaluate through SEL. The exprtk fast path was dropped on
         // purpose: it coerces every value to double, so strings, arrays and
@@ -468,7 +482,8 @@ namespace sapo::tasks {
 
         data::RowMatcher matcher = nullptr;
         if (node.filter.is_string()) {
-            const parser::Expression predicate = node.filter.get<std::string>();
+            // A row filter is a program, not a template: `amount >= 100` must compare.
+            const parser::Expression predicate = parser::Expression::fromExpression(node.filter.get<std::string>());
             const auto session = &execution;
             matcher = [predicate, session](const json &row) {
                 auto scope = session->scope();

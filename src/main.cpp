@@ -14,6 +14,7 @@
 //  3 session parked (awaiting input / timer).
 //
 #include "config/ProviderConfig.hpp"
+#include "parser/WorkflowParser.hpp"
 #include "observability/Logger.hpp"
 #include "runtime/StateStore.hpp"
 #include "runtime/VirtualMachine.hpp"
@@ -25,6 +26,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -107,6 +109,13 @@ Options:
 /// `--var key=value` keeps scripts readable: anything that parses as JSON wins,
 /// otherwise the raw text is used (so `--var msisdn=233201…` does not need quotes).
 json parseVarValue(const std::string &text) {
+    auto all_digits = [](const std::string &value) {
+        return !value.empty() && std::all_of(value.begin(), value.end(),
+                                             [](char c) { return c >= '0' && c <= '9'; });
+    };
+    // MSISDNs, account numbers and card tokens are digit strings, not quantities:
+    // reading them as integers would lose leading zeros and precision.
+    if (all_digits(text) && (text.front() == '0' || text.size() > 15)) return text;
     try {
         return json::parse(text);
     } catch (const json::exception &) {
@@ -115,7 +124,14 @@ json parseVarValue(const std::string &text) {
 }
 
 json mergeVars(const std::vector<std::pair<std::string, std::string>> &vars, json input) {
-    if (!input.is_object()) input = json::object();
+    if (vars.empty()) return input;   // never clobber a scalar payload (`--answer "1234"`)
+    if (!input.is_object()) {
+        if (input.is_null()) {
+            input = json::object();
+        } else {
+            fail("--var needs an object input: pass the scalar on its own with --input/--answer");
+        }
+    }
     for (const auto &[key, raw] : vars) {
         if (key.empty()) fail("--var expects name=json");
         input[key] = parseVarValue(raw);
@@ -203,6 +219,8 @@ sapo::obs::LogLevel levelFrom(const std::string &name, sapo::obs::LogLevel fallb
 
 /// Assembles the service graph from flags + `sapo-config.json`. Everything that a
 /// host would inject is injected here, so the CLI never has private behaviour.
+std::string config_loaded_early;
+
 TaskServices buildServices(const Options &options) {
     TaskServices services = TaskServices::defaults();
 
@@ -218,31 +236,12 @@ TaskServices buildServices(const Options &options) {
     }
     services.logger = logger;
 
-    const std::string config_path = options.value("config");
-    if (!config_path.empty()) {
-        try {
-            services.provider_config =
-                std::make_shared<sapo::config::ProviderConfigStore>(sapo::config::ProviderConfigStore::load(config_path));
-        } catch (const std::exception &error) {
-            fail("cannot load '" + config_path + "': " + error.what());
-        }
-    } else if (auto discovered = sapo::config::ProviderConfigStore::discover("."); discovered.has_value()) {
-        services.provider_config = std::make_shared<sapo::config::ProviderConfigStore>(*discovered);
-    }
-    if (services.provider_config != nullptr) {
-        for (const auto &problem : services.provider_config->validate()) {
-            std::cerr << "sapoc: config: " << problem << "\n";
-        }
-        const json engine = services.provider_config->engine();
-        if (engine.contains("max_node_visits") && engine["max_node_visits"].is_number()) {
-            services.limits.max_node_visits = engine["max_node_visits"].get<size_t>();
-        }
-        if (engine.contains("max_depth") && engine["max_depth"].is_number()) {
-            services.limits.max_depth = engine["max_depth"].get<size_t>();
-        }
-        if (engine.contains("default_timeout_ms") && engine["default_timeout_ms"].is_number()) {
-            services.limits.default_timeout_ms = engine["default_timeout_ms"].get<int64_t>();
-        }
+    // `--config` only names the file: VirtualMachine::start() loads it, applies the
+    // engine tunables and provider secrets, and collects problems — one path for the
+    // CLI and every embedding host.
+    if (const std::string config_path = options.value("config"); !config_path.empty()) {
+        if (!std::filesystem::exists(config_path)) fail("no such config file '" + config_path + "'");
+        config_loaded_early = config_path;
     }
     if (const std::string max_visits = options.value("max-visits"); !max_visits.empty()) {
         services.limits.max_node_visits = static_cast<size_t>(std::strtoull(max_visits.c_str(), nullptr, 10));
@@ -351,7 +350,17 @@ void printSessions(const Options &options, const std::vector<SessionSnapshot> &s
     }
 }
 
+/// `--strict` turns "unused field" warnings into errors, and `--config`'s provider
+/// list is what makes capability references resolve at parse time.
+void applyParseOptions(VirtualMachine &vm, const Options &options) {
+    sapo::parser::ParseOptions parse = vm.workflows().parseOptions();
+    if (options.has("strict")) parse.strict_fields = true;
+    parse.capabilities = vm.services().capabilities.get();
+    vm.workflows().setParseOptions(parse);
+}
+
 int commandRun(VirtualMachine &vm, const Options &options) {
+    applyParseOptions(vm, options);
     vm.start();
     const std::string workflow_id = registerBlueprint(vm, options);
     StartSessionOptions session_options;
@@ -376,6 +385,7 @@ int commandRun(VirtualMachine &vm, const Options &options) {
 
 int commandResume(VirtualMachine &vm, const Options &options) {
     if (options.positional.empty()) fail("`resume` needs a session id");
+    applyParseOptions(vm, options);
     vm.start();
     // A restarted engine needs the blueprint on disk again to interpret the checkpoint.
     for (int index = 1; index < static_cast<int>(options.positional.size()); ++index) {
@@ -447,6 +457,7 @@ int main(int argc, char **argv) {
         fail(error.what());
     }
     VirtualMachine vm(std::move(services));
+    if (!config_loaded_early.empty()) vm.setConfigPath(config_loaded_early);
 
     try {
         if (options.command == "run") return commandRun(vm, options);

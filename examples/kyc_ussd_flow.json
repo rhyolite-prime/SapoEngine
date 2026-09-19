@@ -1,0 +1,160 @@
+{
+  "name": "examples.kyc_ussd_flow",
+  "version": "1.0",
+  "description": "M2 showcase: a USSD KYC re-check that parks on a PIN prompt, survives a restart, validates the reply, calls the KYC API with retry and degrades on failure.",
+  "defaults": {
+    "attempts": 0
+  },
+  "nodes": [
+    {
+      "id": "load_profile",
+      "type": "command",
+      "command": "http.get",
+      "label": "Fetch the customer profile",
+      "http_request": {
+        "url": "https://api.example.test/v1/customers/${msisdn}",
+        "headers": {
+          "Authorization": "Bearer ${api_token}"
+        }
+      },
+      "retry": {
+        "max_attempts": 3,
+        "backoff_ms": 250,
+        "multiplier": 2,
+        "jitter": 0.25
+      },
+      "output": {
+        "profile": "$.body",
+        "profile_status": "$.status"
+      },
+      "on_error": "profile_unavailable",
+      "next": "ask_pin"
+    },
+    {
+      "id": "profile_unavailable",
+      "type": "noop",
+      "assign": {
+        "profile": {
+          "status": "unknown"
+        },
+        "degraded": true
+      }
+    },
+    {
+      "id": "ask_pin",
+      "type": "action",
+      "capability": "",
+      "label": "Ask for the 4-digit security PIN",
+      "await_input": true,
+      "input_variable": "pin",
+      "prompt_config": {
+        "message": "Enter your 4-digit PIN to continue (session expires in 2 minutes)",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$')",
+        "timeout": "2m"
+      },
+      "on_error": "expired",
+      "next": "check_pin"
+    },
+    {
+      "id": "check_pin",
+      "type": "if",
+      "label": "PIN format is what the KYC provider expects",
+      "condition": "pin != null && len(pin) == 4",
+      "then": [
+        {
+          "id": "verify_kyc",
+          "type": "command",
+          "command": "http.post",
+          "http_request": {
+            "url": "https://api.example.test/v1/kyc/verify",
+            "body": {
+              "msisdn": "${msisdn}",
+              "pin": "$pin"
+            },
+            "timeout": "5s"
+          },
+          "output": {
+            "kyc": "$.body"
+          },
+          "on_error": "kyc_unavailable"
+        }
+      ],
+      "else": [
+        {
+          "id": "pin_format_bad",
+          "type": "terminate",
+          "status": "failure",
+          "output": {
+            "reason": "invalid_pin"
+          }
+        }
+      ],
+      "next": "decide"
+    },
+    {
+      "id": "decide",
+      "type": "choice",
+      "label": "Route on the KYC verdict",
+      "cases": {
+        "verified": "grant_limit",
+        "pending": "await_review"
+      },
+      "default": "pin_rejected",
+      "expression": "$kyc.status"
+    },
+    {
+      "id": "await_review",
+      "type": "wait",
+      "label": "Give the back office time to clear the record",
+      "duration": "45m",
+      "next": "grant_limit"
+    },
+    {
+      "id": "kyc_unavailable",
+      "type": "noop",
+      "assign": {
+        "kyc": {
+          "status": "verified"
+        },
+        "fallback_verified": true
+      },
+      "next": "grant_limit"
+    },
+    {
+      "id": "grant_limit",
+      "type": "noop",
+      "assign": {
+        "daily_limit": 2000
+      },
+      "next": "welcome"
+    },
+    {
+      "id": "welcome",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "KYC complete. Your daily limit is GHS ${daily_limit}.",
+        "degraded": "$degraded",
+        "fallback_verified": "$fallback_verified"
+      }
+    },
+    {
+      "id": "expired",
+      "type": "terminate",
+      "status": "failure",
+      "output": {
+        "reason": "prompt_timeout",
+        "message": "We did not receive your PIN. Start again when you are ready."
+      }
+    },
+    {
+      "id": "pin_rejected",
+      "type": "terminate",
+      "status": "failure",
+      "output": {
+        "reason": "kyc_not_verified"
+      }
+    }
+  ]
+}

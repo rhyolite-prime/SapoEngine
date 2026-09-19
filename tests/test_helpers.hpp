@@ -116,7 +116,7 @@ namespace sapo::testing {
             services.clock = clock;
             services.transport = transport;
             services.capabilities = capabilities;
-            services.data_sources = std::make_shared<sapo::data::DataSourceRegistry>();
+            services.data_sources = sapo::data::DataSourceRegistry::withBuiltIns(services.transport);
             services.events = std::make_shared<runtime::EventBus>();
             services.scheduler = std::make_shared<runtime::Scheduler>(clock);
             services.state_store = std::make_shared<runtime::InMemoryStateStore>();

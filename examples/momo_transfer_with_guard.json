@@ -1,0 +1,71 @@
+{
+  "name": "examples.momo_transfer",
+  "version": "1.0",
+  "description": "Error-model showcase (T2.6): a guarded transfer where a failed debit is refunded, a receipt is always mailed by `finally`, and the whole thing degrades to a queued transfer.",
+  "nodes": [
+    {
+      "id": "debit_guard",
+      "type": "try",
+      "body": [
+        {
+          "id": "debit",
+          "type": "command",
+          "command": "http.post",
+          "http_request": {
+            "url": "https://api.example.test/v1/wallets/${payer}/debit",
+            "body": { "amount": "${amount}", "reference": "${reference}" }
+          },
+          "retry": { "max_attempts": 3, "backoff_ms": 200, "multiplier": 2 },
+          "output": { "debit_id": "$.body.id" },
+          "next": "credit"
+        },
+        {
+          "id": "credit",
+          "type": "command",
+          "command": "http.post",
+          "http_request": {
+            "url": "https://api.example.test/v1/wallets/${payee}/credit",
+            "body": { "amount": "${amount}", "from": "$debit_id" }
+          },
+          "output": { "transfer": "$.body" }
+        }
+      ],
+      "catch": {
+        "as": "failure",
+        "body": [
+          {
+            "id": "refund",
+            "type": "noop",
+            "assign": { "queued": true, "why": "$failure.message" },
+            "next": "notify_later"
+          }
+        ]
+      },
+      "finally": [
+        {
+          "id": "audit",
+          "type": "noop",
+          "assign": { "audit_written": true }
+        }
+      ],
+      "next": "done"
+    },
+    {
+      "id": "notify_later",
+      "type": "wait",
+      "label": "Back off before the retry sweep picks the transfer up",
+      "duration": "10m",
+      "next": "done"
+    },
+    {
+      "id": "done",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "transfer": "$transfer",
+        "queued": "$queued",
+        "audit_written": "$audit_written"
+      }
+    }
+  ]
+}
