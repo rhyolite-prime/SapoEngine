@@ -56,6 +56,7 @@ namespace sapo::obs {
     }
 
     void JsonLineSink::write(const LogRecord &record) {
+        if (m_stream == nullptr) return;
         nlohmann::json j;
         j["ts"] = iso8601(record.timestamp_ms);
         j["level"] = toString(record.level);

@@ -58,9 +58,14 @@ namespace sapo::obs {
     class JsonLineSink final : public ILogSink {
     public:
         explicit JsonLineSink(std::ostream &stream) : m_stream(&stream) {}
+        /// Owning variant: the sink keeps its stream (typically an open file) alive
+        /// for as long as the sink is registered.
+        explicit JsonLineSink(std::shared_ptr<std::ostream> stream)
+            : m_owner(std::move(stream)), m_stream(m_owner.get()) {}
         void write(const LogRecord &record) override;
 
     private:
+        std::shared_ptr<std::ostream> m_owner;
         std::ostream *m_stream;
     };
 
