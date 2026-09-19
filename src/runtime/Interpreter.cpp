@@ -53,8 +53,6 @@ namespace sapo::runtime {
             return "success";
         }
 
-        bool isTruthyStatus(const std::string &status) { return status == "completed" || status == "terminated"; }
-
     } // namespace
 
     // =========================================================================

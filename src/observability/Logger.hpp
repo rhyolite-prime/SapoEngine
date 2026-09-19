@@ -47,11 +47,8 @@ namespace sapo::obs {
     /// Human readable single line (default sink) — good enough for `sapoc run`.
     class ConsoleSink final : public ILogSink {
     public:
-        explicit ConsoleSink(bool colorize = false) : m_colorize(colorize) {}
+        explicit ConsoleSink(bool /*colorize*/ = false) {}
         void write(const LogRecord &record) override;
-
-    private:
-        bool m_colorize;
     };
 
     /// JSON lines — one object per record; the format tests and APM agents read.
