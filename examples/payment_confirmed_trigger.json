@@ -1,0 +1,28 @@
+{
+  "name": "examples.payment_confirmed",
+  "version": "1.0",
+  "description": "Event-driven entry point (T2.4): starts when `payments.confirmed` is published. `sapoc emit payments.confirmed --var reference=REF-1 --blueprint examples/payment_confirmed_trigger.json`.",
+  "trigger": { "event": "payments.*" },
+  "nodes": [
+    {
+      "id": "record",
+      "type": "noop",
+      "assign": { "confirmed_reference": "$event.reference", "amount": "$event.amount" }
+    },
+    {
+      "id": "route",
+      "type": "choice",
+      "expression": "$event.channel",
+      "cases": { "sms": "notify_sms", "app": "notify_push" },
+      "default": "finish"
+    },
+    { "id": "notify_sms", "type": "noop", "assign": { "channel": "sms" }, "next": "finish" },
+    { "id": "notify_push", "type": "noop", "assign": { "channel": "push" }, "next": "finish" },
+    {
+      "id": "finish",
+      "type": "terminate",
+      "status": "success",
+      "output": { "reference": "$confirmed_reference", "channel": "$channel" }
+    }
+  ]
+}

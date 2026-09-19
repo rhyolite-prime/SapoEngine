@@ -1,0 +1,78 @@
+{
+  "version": "1.0",
+  "engine": {
+    "workers": 4,
+    "log_level": "warn",
+    "max_node_visits": 100000,
+    "max_depth": 8,
+    "default_timeout_ms": 900000
+  },
+  "secrets": {
+    "momo_api_token": "env:SAPO_MOMO_TOKEN",
+    "kyc_client_secret": "env:SAPO_KYC_SECRET"
+  },
+  "config": {
+    "kyc": {
+      "base_url": "https://kyc.example.test/v1",
+      "verify_path": "/kyc/verify"
+    },
+    "payouts": {
+      "base_url": "https://api.example.test/v1",
+      "currency": "GHS"
+    }
+  },
+  "providers": {
+    "communication.email": {
+      "type": "builtin",
+      "deferred": true,
+      "note": "SMTP plugin (M3 \u2460). Registered as deferred so `communication.email.send` fails with a clear message instead of pretending to send."
+    },
+    "ai.openai": {
+      "type": "http",
+      "deferred": true,
+      "base_url": "https://api.openai.com/v1",
+      "api_key": "secret:openai_key"
+    },
+    "security.totp": {
+      "type": "builtin",
+      "deferred": true,
+      "issuer": "Sapo"
+    }
+  },
+  "data_sources": [
+    {
+      "name": "agents",
+      "provider": "context",
+      "scope": "internal",
+      "config": {
+        "source": "$agent_directory"
+      }
+    },
+    {
+      "name": "tariffs",
+      "provider": "mock",
+      "scope": "external",
+      "config": {
+        "rows": [
+          {
+            "code": "STD",
+            "fee": 0.05,
+            "currency": "GHS"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ledger",
+      "provider": "postgresql",
+      "deferred": true,
+      "config": {
+        "dsn": "env:SAPO_LEDGER_DSN"
+      }
+    }
+  ],
+  "workflows": {
+    "directory": "examples"
+  },
+  "plugins": []
+}
