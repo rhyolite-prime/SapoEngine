@@ -60,6 +60,8 @@ namespace sapo::runtime {
         std::string status;
         std::string cursor;
         nlohmann::json pending = nlohmann::json::object();
+        nlohmann::json context = nlohmann::json::object();
+        nlohmann::json output = nlohmann::json::object();   // `terminate.output`, once the session has one
         int64_t created_ms{0};
         int64_t updated_ms{0};
         size_t node_visits{0};

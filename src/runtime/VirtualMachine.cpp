@@ -99,6 +99,8 @@ namespace sapo::runtime {
         snapshot.status = toString(checkpoint.status);
         snapshot.cursor = checkpoint.cursor;
         snapshot.pending = checkpoint.pending;
+        snapshot.context = checkpoint.context;
+        snapshot.output = checkpoint.result;
         snapshot.created_ms = checkpoint.created_ms;
         snapshot.updated_ms = checkpoint.updated_ms;
         snapshot.node_visits = checkpoint.node_visits;
@@ -119,6 +121,8 @@ namespace sapo::runtime {
                  {"resumable", resumable}};
         if (!cursor.empty()) out["cursor"] = cursor;
         if (!pending.is_null() && !pending.empty()) out["pending"] = pending;
+        if (!output.is_null() && !output.empty()) out["output"] = output;
+        if (!context.is_null() && !context.empty()) out["context"] = context;
         if (!error.empty()) out["error"] = error;
         return out;
     }

@@ -400,11 +400,13 @@ namespace sapo::tasks {
         suspend.resume_at_ms = deadline.value_or(now);
         suspend.data = json{{"duration", node.duration.value_or("")}};
         if (!node.durable) {
-            // `durable: false` is honoured as "block this worker", which is what a
-            // caller embedding the engine may want for a sub-second delay.
+            // `durable: false` means "short enough to inline". The sleep goes through
+            // the injected delay sink so a host can drive it in virtual time (tests)
+            // instead of parking a pool thread.
             const int64_t wait_ms = suspend.resume_at_ms.value_or(now) - now;
             if (wait_ms > 0 && wait_ms <= execution.services.limits.inline_wait_limit_ms) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(wait_ms));
+                if (execution.services.delay_sink) execution.services.delay_sink(wait_ms);
+                else std::this_thread::sleep_for(std::chrono::milliseconds(wait_ms));
                 return Continue{};
             }
         }

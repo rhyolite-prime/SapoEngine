@@ -205,7 +205,9 @@ namespace sapo::runtime {
 
         TaskServices m_services;
         const tasks::TaskRegistry *m_tasks{nullptr};
-        std::mutex m_mutex;
+        // Recursive: an event callback resumes a session, and the resume path
+        // re-enters the interpreter to disarm that same subscription.
+        std::recursive_mutex m_mutex;
         std::map<std::string, std::vector<EventBus::SubscriptionId>> m_event_subscriptions;
         EventBus::SubscriptionId m_trigger_subscription{0};
         bool m_runners_installed{false};

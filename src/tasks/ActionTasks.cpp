@@ -112,10 +112,15 @@ namespace sapo::tasks {
                 scope.locals["$input"] = input;
                 scope.locals["value"] = input;
                 if (!runtime::ExpressionEvaluator::evaluateBool(*prompt.input_validation, scope)) {
-                    throw runtime::SapoError(runtime::ErrorCode::Validation,
-                                             "input failed validation for node '" + node.id + "'",
-                                             json{{"input", input}, {"rule", prompt.input_validation->source()}},
-                                             node.id);
+                    const std::string rule = prompt.input_validation->source();
+                    std::string message = "input for node '" + node.id + "' did not satisfy the prompt rule '" +
+                                          rule + "'";
+                    if (node.input_variable.has_value() && !node.input_variable->empty()) {
+                        message += " (expected a value for '" + *node.input_variable + "')";
+                    }
+                    json data{{"input", input}, {"rule", rule}};
+                    if (prompt.message.empty() == false) data["prompt"] = prompt.message.source();
+                    throw runtime::SapoError(runtime::ErrorCode::Validation, message, std::move(data), node.id);
                 }
             }
         }

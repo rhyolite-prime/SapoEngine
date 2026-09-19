@@ -114,6 +114,25 @@ namespace sapo::parser {
                 return (value != nullptr && value->is_number()) ? value->get<int64_t>() : fallback;
             }
 
+            /// A duration in milliseconds: a number is already milliseconds, a string
+            /// may be `"90s"`, `"2m"`, `"1500ms"` or bare seconds.
+            [[nodiscard]] std::optional<int64_t> durationMs(std::initializer_list<const char *> names) const {
+                const json *value = find(names);
+                if (value == nullptr || value->is_null()) return std::nullopt;
+                if (value->is_number()) return value->get<int64_t>();
+                if (value->is_string()) {
+                    const std::string text = value->get<std::string>();
+                    if (auto delay = util::parseDuration(text); delay.has_value()) return delay->count();
+                    if (auto relative = util::parseRelativeDelay(text); relative.has_value()) return relative->count();
+                    try {
+                        return std::stoll(text);
+                    } catch (const std::exception &) {
+                        return std::nullopt;
+                    }
+                }
+                return std::nullopt;
+            }
+
             [[nodiscard]] double doubleOr(double fallback, std::initializer_list<const char *> names) const {
                 const json *value = find(names);
                 return (value != nullptr && value->is_number()) ? value->get<double>() : fallback;
@@ -413,7 +432,10 @@ namespace sapo::parser {
                 config.headers = http_fields.templateOr(json::object(), {"headers"});
                 config.query = http_fields.templateOr(json::object(), {"query", "params", "query_parameters"});
                 config.body = http_fields.templateOr(json(), {"body", "payload", "data"});
-                if (auto timeout = http_fields.intOr(-1, {"timeout", "timeout_ms"}); timeout >= 0) config.timeout = timeout;
+                if (auto timeout = http_fields.durationMs({"timeout", "timeout_ms"});
+                    timeout.has_value() && *timeout >= 0) {
+                    config.timeout = static_cast<int>(*timeout);
+                }
                 config.follow_redirects = http_fields.boolOr(true, {"follow_redirects"});
                 config.content_type = http_fields.optionalString({"content_type"});
                 for (auto it = http->begin(); it != http->end(); ++it) {
@@ -659,8 +681,9 @@ namespace sapo::parser {
                     config.message = prompt_fields.expression({"message", "text"});
                     config.interaction_type = lower(prompt_fields.stringOr("input", {"interaction_type", "type", "mode"}));
                     config.input_validation = prompt_fields.optionalPredicate({"input_validation", "validation"});
-                    if (auto timeout = prompt_fields.intOr(-1, {"timeout_ms", "timeout"}); timeout >= 0) {
-                        config.timeout_ms = timeout;
+                    if (auto timeout = prompt_fields.durationMs({"timeout", "timeout_ms"});
+                        timeout.has_value() && *timeout >= 0) {
+                        config.timeout_ms = static_cast<int>(*timeout);
                     }
                     config.output = prompt_fields.optionalString({"output", "save_to", "input_variable"});
                     for (auto it = prompt->begin(); it != prompt->end(); ++it) {
@@ -685,7 +708,13 @@ namespace sapo::parser {
                 node->input_variable = node->prompt_config->output;
             }
 
-            if (const json *event = fields.find({"on_event"}); event != nullptr && event->is_object()) {
+            if (const json *event = fields.find({"on_event"}); event != nullptr && !event->is_null()) {
+              if (event->is_string()) {
+                // `"on_event": "bank.transfer.confirmed"` is the shorthand spelling.
+                ActionNode::SystemEvent shorthand;
+                shorthand.event_name = event->get<std::string>();
+                node->on_event = shorthand;
+              } else if (event->is_object()) {
                 ActionNode::SystemEvent system_event;
                 std::set<std::string> event_used;
                 Fields event_fields(*event, event_used);
@@ -698,6 +727,9 @@ namespace sapo::parser {
                     }
                 }
                 node->on_event = system_event;
+              } else {
+                reject("action node '" + id + "': 'on_event' must be an event name or an object with 'event_name'");
+              }
             }
 
             if (const json *sources = fields.find({"data_sources"}); sources != nullptr && sources->is_array()) {

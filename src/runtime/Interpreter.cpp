@@ -1128,6 +1128,11 @@ namespace sapo::runtime {
         if (checkpoint.context.is_object()) state.context->restore(checkpoint.context);
         state.frames = RuntimeContext::framesFromJson(checkpoint.frames);
         state.context->setFrames(state.frames);
+        // Iteration locals are per-activation, so a resumed loop must re-bind its
+        // iterator before the body runs again.
+        for (const auto &frame : state.frames) {
+            if (frame.kind == "loop") bindIteration(state, frame);
+        }
         state.session_id = checkpoint.session_id;
         state.execution_id = checkpoint.execution_id.empty() ? util::uuidV4() : checkpoint.execution_id;
         state.workflow_id = checkpoint.blueprint_id;
@@ -1144,7 +1149,9 @@ namespace sapo::runtime {
 
         const json pending = checkpoint.pending.is_object() ? checkpoint.pending : json::object();
         const std::string reason = pending.value("reason", "input");
-        const bool has_input = !input.is_null();
+        // An omitted answer (`{}`) is not an answer: it must not be written to the
+        // prompt variable, or validation would judge an empty object.
+        const bool has_input = !input.is_null() && !(input.is_object() && input.empty() && reason == "input");
         if (timed_out) {
             CapturedError error;
             error.code = "TIMEOUT";
@@ -1152,6 +1159,10 @@ namespace sapo::runtime {
             error.node = pending.value("node", "");
             error.data = json{{"reason", "prompt_timeout"}, {"timeout_ms", pending.value("timeout_ms", 0)}};
             state.pending_error = error.toJson();
+            // Resume at the node that was waiting, so its `on_error` handler (and any
+            // enclosing try frame, which the checkpoint restored) gets the timeout.
+            state.cursor = pending.value("node", checkpoint.cursor);
+            if (state.cursor.empty() || workflow.find(state.cursor) == nullptr) state.cursor = checkpoint.cursor;
         } else if (has_input) {
             if (reason == "input") {
                 const std::string variable = pending.value("input_variable", "");
@@ -1165,8 +1176,15 @@ namespace sapo::runtime {
                 if (state.cursor.empty() || workflow.find(state.cursor) == nullptr) {
                     state.cursor = pending.value("resume_node", "");
                 }
-                state.locals[reason.empty() ? "event" : reason] = input;
-                if (reason == "event") state.locals["event"] = input;
+                const std::string key = reason.empty() ? "event" : reason;
+                state.locals[key] = input;
+                if (key == "event") state.locals["event"] = input;
+                // A timer/event wake-up can also carry facts the workflow is waiting
+                // on (`{"ready": true}` from a webhook), which the suspended node must
+                // see in its context when it re-runs.
+                if (input.is_object()) {
+                    for (const auto &item : input.items()) state.context->setByPath(item.key(), item.value());
+                }
             }
         } else {
             state.cursor = checkpoint.cursor;
@@ -1181,6 +1199,9 @@ namespace sapo::runtime {
             return report;
         }
 
+        // Error attribution (and `on_error` lookup) needs to know which node the
+        // session is standing on, not only where the cursor points.
+        if (state.current_node_id.empty()) state.current_node_id = state.cursor;
         if (m_services.metrics) m_services.metrics->increment("sapo.sessions.resumed");
         if (m_services.logger) {
             m_services.logger->debug("interpreter", "session " + state.session_id + " resumed at node '" +
@@ -1233,6 +1254,12 @@ namespace sapo::runtime {
         disarmWakeup(session_id);
         if (m_services.scheduler) m_services.scheduler->cancelTimersForSession(session_id);
         if (!checkpoint.has_value()) return false;
+        // Only a live session can be cancelled; a finished one is left alone and a
+        // second cancel is a no-op rather than a success.
+        if (checkpoint->status != SessionStatus::Running && checkpoint->status != SessionStatus::AwaitingInput &&
+            checkpoint->status != SessionStatus::Waiting) {
+            return false;
+        }
         checkpoint->status = SessionStatus::Cancelled;
         checkpoint->updated_ms = m_services.clock ? m_services.clock->now().count() : 0LL;
         checkpoint->pending = json{{"reason", "cancelled"}, {"detail", reason}};
@@ -1267,7 +1294,10 @@ namespace sapo::runtime {
         }
         if (state.status == "awaiting_input" || state.status == "suspended") {
             report.cursor = state.cursor;
-            report.prompt = state.suspend_request;
+            // Channels render `prompt`; the surrounding envelope (reason, resume
+            // node, timers) belongs to the checkpoint rather than the reply.
+            report.prompt = state.suspend_request.contains("prompt") ? state.suspend_request["prompt"]
+                                                                     : state.suspend_request;
             report.output = json::object();
         }
         if (state.status == "failed" && report.error_message.empty()) {
@@ -1309,7 +1339,6 @@ namespace sapo::runtime {
         checkpoint.cursor = state.cursor;
         checkpoint.context = state.context ? state.context->snapshot() : json::object();
         checkpoint.frames = RuntimeContext::framesToJson(state.frames);
-        checkpoint.parent_session = state.resume_node_id.empty() ? "" : "";
         if (state.status == "awaiting_input") checkpoint.status = SessionStatus::AwaitingInput;
         else if (state.status == "suspended") checkpoint.status = SessionStatus::Waiting;
         else if (state.status == "failed") checkpoint.status = SessionStatus::Failed;
@@ -1342,7 +1371,11 @@ namespace sapo::runtime {
         } else if (report.failed()) {
             checkpoint.error = "[" + report.error_code + "] " + report.error_message +
                                (report.error_node.empty() ? "" : " (node '" + report.error_node + "')");
-            checkpoint.result = json::object();
+            // A `terminate(status: failure, output: …)` payload is part of the contract
+            // with the caller, so it survives; the raw context dump does not.
+            checkpoint.result = state.terminate_payload.is_object() && !state.terminate_payload.empty()
+                                    ? state.terminate_payload
+                                    : json::object();
         } else {
             checkpoint.result = state.status == "terminated" ? state.terminate_payload : checkpoint.context;
         }
@@ -1367,7 +1400,7 @@ namespace sapo::runtime {
             const std::string session_id = state.session_id;
             auto subscription = m_services.events->subscribe(
                 event_name, [this, session_id](const Event &event) {
-                    std::lock_guard<std::mutex> guard(m_mutex);
+                    std::lock_guard<std::recursive_mutex> guard(m_mutex);
                     auto checkpoint_opt = m_services.state_store != nullptr ? m_services.state_store->load(session_id)
                                                                              : std::optional<SessionCheckpoint>{};
                     if (!checkpoint_opt.has_value()) return;
@@ -1381,7 +1414,7 @@ namespace sapo::runtime {
                     if (workflow == nullptr) return;
                     resume(*workflow, *checkpoint_opt, event.payload);
                 });
-            std::lock_guard<std::mutex> guard(m_mutex);
+            std::lock_guard<std::recursive_mutex> guard(m_mutex);
             m_event_subscriptions[session_id].push_back(subscription);
         }
     }
@@ -1389,7 +1422,7 @@ namespace sapo::runtime {
     void Interpreter::disarmWakeup(const std::string &session_id) {
         std::vector<EventBus::SubscriptionId> subscriptions;
         {
-            std::lock_guard<std::mutex> guard(m_mutex);
+            std::lock_guard<std::recursive_mutex> guard(m_mutex);
             auto it = m_event_subscriptions.find(session_id);
             if (it == m_event_subscriptions.end()) return;
             subscriptions = it->second;
@@ -1463,7 +1496,7 @@ namespace sapo::runtime {
                         startTriggeredWorkflow(workflow_id, event);
                     }
                 });
-            std::lock_guard<std::mutex> guard(m_mutex);
+            std::lock_guard<std::recursive_mutex> guard(m_mutex);
             m_trigger_subscription = subscription;
         }
     }
