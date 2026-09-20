@@ -413,16 +413,16 @@ record live exchanges once and replay them offline — blueprint tests never tou
 - [ ] `sapoc validate <blueprint-dir> --strict --config sapo-config.json` runs in CI before deploy.
 - [ ] `vm.start()` audit problems are treated as deploy failures.
 - [ ] Durable state store chosen (`FileStateStore` single-node; Redis/PG shared); state dir on
-      durable storage with sane permissions.
+  durable storage with sane permissions.
 - [ ] Secrets live in env/vault and enter via `env:*`/`secret:*` in `sapo-config.json`;
-      `applySecretRedaction()` keeps them out of logs (done by `start()`).
+  `applySecretRedaction()` keeps them out of logs (done by `start()`).
 - [ ] Engine calls happen off Drogon IO threads (`drogon::async_run` or a worker pool).
 - [ ] Timers/cron/event triggers needed? `startBackgroundTick()` is running.
 - [ ] Blueprints are registered at startup only; hot reload = validate-then-swap process.
 - [ ] `/healthz` + `vm.metrics()` exported to your monitoring (`sapo.sessions.*`, latencies).
 - [ ] Graceful shutdown: `vm.stop()` from `app().registerSyncAdvice` before exit.
 - [ ] USSD/2s SLA: prompts answer synchronously; slow side effects moved to
-      scheduled/event-triggered blueprints.
+  scheduled/event-triggered blueprints.
 
 ## 7. Status → HTTP mapping reference
 
