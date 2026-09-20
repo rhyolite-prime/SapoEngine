@@ -47,12 +47,17 @@ namespace sapo::http {
                                                                  : request.body->dump()});
         }
         if (request.timeout_ms > 0) session.SetTimeout(std::chrono::milliseconds(request.timeout_ms));
-        session.SetEnableRedirects(request.follow_redirects);
+        // cpr::Redirect replaces the removed Session::SetEnableRedirects (cpr >= 1.11).
+        cpr::Redirect redirect;
+        redirect.follow = request.follow_redirects;
+        session.SetRedirect(redirect);
         if (request.basic_auth_user.has_value()) {
-            session.SetAuthentication(cpr::Authenticate{
-                cpr::AuthMode(cpr::authentication::basic),
+            // Session::SetAuth/cpr::Authentication replaced SetAuthentication/cpr::Authenticate in cpr 1.8;
+            // the mode enum is the top-level cpr::AuthMode in cpr 1.10+ (incl. Homebrew's 1.12.x).
+            session.SetAuth(cpr::Authentication{
                 request.basic_auth_user.value_or(""),
-                request.basic_auth_password.value_or("")});
+                request.basic_auth_password.value_or(""),
+                cpr::AuthMode::BASIC});
         }
         if (request.bearer_token.has_value()) {
             cpr::Header bearer = toHeaders(request.headers);

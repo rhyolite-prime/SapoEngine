@@ -191,6 +191,7 @@ namespace sapo::util {
                 case DigestKind::Sha256: return 32;
                 case DigestKind::Sha1: return 20;
                 case DigestKind::Md5: return 16;
+                case DigestKind::Sha512: return 64;
             }
             return 0;
         }
@@ -200,6 +201,7 @@ namespace sapo::util {
                 case DigestKind::Sha256: return sha256(data);
                 case DigestKind::Sha1: return sha1(data);
                 case DigestKind::Md5: return md5(data);
+                case DigestKind::Sha512: return {};
             }
             return {};
         }

@@ -15,8 +15,8 @@ namespace sapo::runtime {
         services.traces = std::make_shared<obs::TraceRecorder>(services.logger);
         services.clock = defaultClock();
         // No transport is linked by default: HTTP nodes fail with a clear message
-        // instead of silently "succeeding" with an empty response.
-        services.transport = std::make_shared<sapo::http::NullTransport>();
+        // Default transport: CprTransport when built with -DSAPO_ENABLE_CPR=ON, NullTransport otherwise.
+        services.transport = sapo::http::defaultTransport();
         services.capabilities = std::make_shared<capabilities::CapabilityRegistry>();
         auto composite = std::make_shared<CompositeBindingProvider>();
         composite->add(std::make_shared<EnvironmentBindingProvider>());

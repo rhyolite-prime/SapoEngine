@@ -1,0 +1,899 @@
+{
+  "name": "examples.bank_ussd_service",
+  "version": "1.0",
+  "description": "USSD Banking Service built with Sapo DSL Engine, featuring multi-level menus for Deposit, Withdrawal, Funds Transfer, Enquiries, and Change PIN with live API integration and resilient error handling.",
+  "defaults": {
+    "bank_name": "Sapo Bank",
+    "currency": "GHS",
+    "phoneNo": "0242602262"
+  },
+  "nodes": [
+    {
+      "id": "main_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Bank USSD Main Menu",
+      "await_input": true,
+      "input_variable": "main_menu_choice",
+      "prompt_config": {
+        "message": "Welcome to Sapo Bank\n1. Deposit\n2. Withdrawal\n3. Funds transfer\n4. Enquiries\n5. Change PIN",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[1-5]$')",
+        "timeout": "2m"
+      },
+      "next": "route_main_menu"
+    },
+    {
+      "id": "route_main_menu",
+      "type": "choice",
+      "label": "Route Main Menu selection",
+      "expression": "$main_menu_choice",
+      "cases": {
+        "1": "menu_deposit",
+        "2": "menu_withdrawal",
+        "3": "menu_funds_transfer",
+        "4": "menu_enquiries",
+        "5": "menu_change_pin"
+      },
+      "default": "main_menu"
+    },
+    {
+      "id": "menu_deposit",
+      "type": "action",
+      "capability": "",
+      "label": "Deposit Account Selection Menu",
+      "await_input": true,
+      "input_variable": "deposit_choice",
+      "prompt_config": {
+        "message": "Deposit\n1. Flexy Account\n2. Kiddy Account\n3. Savings Account\n4. Shares Deposit Account\n5. Loan Account\n0. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-5]$')",
+        "timeout": "2m"
+      },
+      "next": "route_deposit"
+    },
+    {
+      "id": "route_deposit",
+      "type": "choice",
+      "label": "Route Deposit selection",
+      "expression": "$deposit_choice",
+      "cases": {
+        "0": "main_menu",
+        "1": "select_deposit_flexy",
+        "2": "select_deposit_kiddy",
+        "3": "select_deposit_savings",
+        "4": "select_deposit_shares",
+        "5": "select_deposit_loan"
+      },
+      "default": "menu_deposit"
+    },
+    {
+      "id": "select_deposit_flexy",
+      "type": "noop",
+      "assign": {
+        "target_account": "Flexy Account",
+        "account_code": "F"
+      },
+      "next": "deposit_prompt_amount"
+    },
+    {
+      "id": "select_deposit_kiddy",
+      "type": "noop",
+      "assign": {
+        "target_account": "Kiddy Account",
+        "account_code": "K"
+      },
+      "next": "deposit_prompt_amount"
+    },
+    {
+      "id": "select_deposit_savings",
+      "type": "noop",
+      "assign": {
+        "target_account": "Savings Account",
+        "account_code": "U"
+      },
+      "next": "deposit_prompt_amount"
+    },
+    {
+      "id": "select_deposit_shares",
+      "type": "noop",
+      "assign": {
+        "target_account": "Shares Deposit Account",
+        "account_code": "S"
+      },
+      "next": "deposit_prompt_amount"
+    },
+    {
+      "id": "select_deposit_loan",
+      "type": "noop",
+      "assign": {
+        "target_account": "Loan Account",
+        "account_code": "L"
+      },
+      "next": "deposit_prompt_amount"
+    },
+    {
+      "id": "deposit_prompt_amount",
+      "type": "action",
+      "capability": "",
+      "label": "Prompt for deposit amount",
+      "await_input": true,
+      "input_variable": "deposit_amount",
+      "prompt_config": {
+        "message": "Enter Amount to deposit into ${target_account} (GHS):",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^[0-9]+(\\.[0-9]{1,2})?$')",
+        "timeout": "2m"
+      },
+      "next": "deposit_confirm_prompt"
+    },
+    {
+      "id": "deposit_confirm_prompt",
+      "type": "action",
+      "capability": "",
+      "label": "Confirm deposit",
+      "await_input": true,
+      "input_variable": "deposit_confirm",
+      "prompt_config": {
+        "message": "Confirm deposit of GHS ${deposit_amount} to ${target_account}:\n1. Confirm\n2. Cancel",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[1-2]$')",
+        "timeout": "2m"
+      },
+      "next": "route_deposit_confirm"
+    },
+    {
+      "id": "route_deposit_confirm",
+      "type": "choice",
+      "expression": "$deposit_confirm",
+      "cases": {
+        "1": "deposit_success",
+        "2": "operation_cancelled"
+      },
+      "default": "operation_cancelled"
+    },
+    {
+      "id": "deposit_success",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Please approve the Mobile Money prompt of GHS ${deposit_amount} on your phone to complete deposit to ${target_account}. Thank you.",
+        "action": "deposit",
+        "account": "$target_account",
+        "account_code": "$account_code",
+        "amount": "$deposit_amount"
+      }
+    },
+    {
+      "id": "menu_withdrawal",
+      "type": "action",
+      "capability": "",
+      "label": "Withdrawal Menu",
+      "await_input": true,
+      "input_variable": "withdrawal_choice",
+      "prompt_config": {
+        "message": "Withdrawal\n1. Flexy to Momo\n2. Flexy to Bank\n3. Savings Withdrawl Request\n0. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-3]$')",
+        "timeout": "2m"
+      },
+      "next": "route_withdrawal"
+    },
+    {
+      "id": "route_withdrawal",
+      "type": "choice",
+      "label": "Route Withdrawal selection",
+      "expression": "$withdrawal_choice",
+      "cases": {
+        "0": "main_menu",
+        "1": "wd_momo_amount",
+        "2": "wd_bank_select",
+        "3": "wd_savings_amount"
+      },
+      "default": "menu_withdrawal"
+    },
+    {
+      "id": "wd_momo_amount",
+      "type": "action",
+      "capability": "",
+      "label": "Flexy to Momo Amount",
+      "await_input": true,
+      "input_variable": "withdraw_amount",
+      "prompt_config": {
+        "message": "Enter Amount to withdraw from Flexy to Momo (GHS):",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^[0-9]+(\\.[0-9]{1,2})?$')",
+        "timeout": "2m"
+      },
+      "next": "wd_momo_number"
+    },
+    {
+      "id": "wd_momo_number",
+      "type": "action",
+      "capability": "",
+      "label": "Flexy to Momo Phone Number",
+      "await_input": true,
+      "input_variable": "momo_number",
+      "prompt_config": {
+        "message": "Enter Momo Number (or 1 for own number):",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^(1|0[0-9]{9}|233[0-9]{9})$')",
+        "timeout": "2m"
+      },
+      "next": "wd_momo_pin"
+    },
+    {
+      "id": "wd_momo_pin",
+      "type": "action",
+      "capability": "",
+      "label": "Authorize Momo Withdrawal",
+      "await_input": true,
+      "input_variable": "user_pin",
+      "prompt_config": {
+        "message": "Enter 4-digit PIN to authorize withdrawal of GHS ${withdraw_amount}:",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$') ",
+        "timeout": "2m"
+      },
+      "next": "wd_momo_success"
+    },
+    {
+      "id": "wd_momo_success",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Withdrawal of GHS ${withdraw_amount} from Flexy Account to Momo (${momo_number}) processed successfully. Ref: WDL-${now('ms')}",
+        "action": "withdrawal_momo",
+        "amount": "$withdraw_amount",
+        "destination": "$momo_number"
+      }
+    },
+    {
+      "id": "wd_bank_select",
+      "type": "action",
+      "capability": "",
+      "label": "Select Destination Bank",
+      "await_input": true,
+      "input_variable": "bank_code",
+      "prompt_config": {
+        "message": "Select Destination Bank:\n1. GCB Bank\n2. Ecobank\n3. Stanbic Bank\n4. Fidelity Bank\n0. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-4]$')",
+        "timeout": "2m"
+      },
+      "next": "route_bank_select"
+    },
+    {
+      "id": "route_bank_select",
+      "type": "choice",
+      "expression": "$bank_code",
+      "cases": {
+        "0": "menu_withdrawal",
+        "1": "set_bank_gcb",
+        "2": "set_bank_ecobank",
+        "3": "set_bank_stanbic",
+        "4": "set_bank_fidelity"
+      },
+      "default": "wd_bank_select"
+    },
+    {
+      "id": "set_bank_gcb",
+      "type": "noop",
+      "assign": {
+        "bank_name": "GCB Bank"
+      },
+      "next": "wd_bank_account"
+    },
+    {
+      "id": "set_bank_ecobank",
+      "type": "noop",
+      "assign": {
+        "bank_name": "Ecobank"
+      },
+      "next": "wd_bank_account"
+    },
+    {
+      "id": "set_bank_stanbic",
+      "type": "noop",
+      "assign": {
+        "bank_name": "Stanbic Bank"
+      },
+      "next": "wd_bank_account"
+    },
+    {
+      "id": "set_bank_fidelity",
+      "type": "noop",
+      "assign": {
+        "bank_name": "Fidelity Bank"
+      },
+      "next": "wd_bank_account"
+    },
+    {
+      "id": "wd_bank_account",
+      "type": "action",
+      "capability": "",
+      "label": "Enter Bank Account Number",
+      "await_input": true,
+      "input_variable": "bank_account",
+      "prompt_config": {
+        "message": "Enter ${bank_name} Account Number:",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^[0-9]{8,16}$') ",
+        "timeout": "2m"
+      },
+      "next": "wd_bank_amount"
+    },
+    {
+      "id": "wd_bank_amount",
+      "type": "action",
+      "capability": "",
+      "label": "Enter Bank Transfer Amount",
+      "await_input": true,
+      "input_variable": "withdraw_amount",
+      "prompt_config": {
+        "message": "Enter Amount to transfer to ${bank_name} (GHS):",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^[0-9]+(\\.[0-9]{1,2})?$')",
+        "timeout": "2m"
+      },
+      "next": "wd_bank_pin"
+    },
+    {
+      "id": "wd_bank_pin",
+      "type": "action",
+      "capability": "",
+      "label": "Authorize Bank Transfer",
+      "await_input": true,
+      "input_variable": "user_pin",
+      "prompt_config": {
+        "message": "Enter 4-digit PIN to authorize transfer of GHS ${withdraw_amount} to ${bank_name} (${bank_account}):",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$') ",
+        "timeout": "2m"
+      },
+      "next": "wd_bank_success"
+    },
+    {
+      "id": "wd_bank_success",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Transfer of GHS ${withdraw_amount} to ${bank_name} Account ${bank_account} submitted. Ref: BNK-${now('ms')}",
+        "action": "withdrawal_bank",
+        "bank": "$bank_name",
+        "account": "$bank_account",
+        "amount": "$withdraw_amount"
+      }
+    },
+    {
+      "id": "wd_savings_amount",
+      "type": "action",
+      "capability": "",
+      "label": "Savings Withdrawal Request Amount",
+      "await_input": true,
+      "input_variable": "savings_amount",
+      "prompt_config": {
+        "message": "Enter Savings Withdrawal Amount (GHS):",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^[0-9]+(\\.[0-9]{1,2})?$')",
+        "timeout": "2m"
+      },
+      "next": "wd_savings_reason"
+    },
+    {
+      "id": "wd_savings_reason",
+      "type": "action",
+      "capability": "",
+      "label": "Savings Withdrawal Reason",
+      "await_input": true,
+      "input_variable": "savings_reason_code",
+      "prompt_config": {
+        "message": "Select Reason for Withdrawal:\n1. Emergency\n2. Medical\n3. School Fees\n4. Business\n5. Other",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[1-5]$')",
+        "timeout": "2m"
+      },
+      "next": "wd_savings_pin"
+    },
+    {
+      "id": "wd_savings_pin",
+      "type": "action",
+      "capability": "",
+      "label": "Authorize Savings Withdrawal Request",
+      "await_input": true,
+      "input_variable": "user_pin",
+      "prompt_config": {
+        "message": "Enter 4-digit PIN to submit Savings Withdrawal Request for GHS ${savings_amount}:",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$') ",
+        "timeout": "2m"
+      },
+      "next": "wd_savings_success"
+    },
+    {
+      "id": "wd_savings_success",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Your Savings Withdrawal Request for GHS ${savings_amount} has been received and queued for committee review. Ref: SVR-${now('ms')}",
+        "action": "withdrawal_savings_request",
+        "amount": "$savings_amount"
+      }
+    },
+    {
+      "id": "menu_funds_transfer",
+      "type": "action",
+      "capability": "",
+      "label": "Funds Transfer Menu",
+      "await_input": true,
+      "input_variable": "transfer_choice",
+      "prompt_config": {
+        "message": "Funds transfer\n1. Transfer to Kiddy Account\n2. Transfer to Member Account\n0. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-2]$')",
+        "timeout": "2m"
+      },
+      "next": "route_funds_transfer"
+    },
+    {
+      "id": "route_funds_transfer",
+      "type": "choice",
+      "label": "Route Funds Transfer selection",
+      "expression": "$transfer_choice",
+      "cases": {
+        "0": "main_menu",
+        "1": "ft_kiddy_account",
+        "2": "ft_member_account"
+      },
+      "default": "menu_funds_transfer"
+    },
+    {
+      "id": "ft_kiddy_account",
+      "type": "action",
+      "capability": "",
+      "label": "Enter Kiddy Account Number",
+      "await_input": true,
+      "input_variable": "kiddy_account",
+      "prompt_config": {
+        "message": "Enter Kiddy Account Number:",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^[0-9]{6,12}$') ",
+        "timeout": "2m"
+      },
+      "next": "ft_kiddy_amount"
+    },
+    {
+      "id": "ft_kiddy_amount",
+      "type": "action",
+      "capability": "",
+      "label": "Enter Amount to Transfer to Kiddy",
+      "await_input": true,
+      "input_variable": "transfer_amount",
+      "prompt_config": {
+        "message": "Enter Amount to transfer (GHS):",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^[0-9]+(\\.[0-9]{1,2})?$')",
+        "timeout": "2m"
+      },
+      "next": "ft_kiddy_pin"
+    },
+    {
+      "id": "ft_kiddy_pin",
+      "type": "action",
+      "capability": "",
+      "label": "Authorize Kiddy Transfer",
+      "await_input": true,
+      "input_variable": "user_pin",
+      "prompt_config": {
+        "message": "Enter 4-digit PIN to transfer GHS ${transfer_amount} to Kiddy Account ${kiddy_account}:",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$') ",
+        "timeout": "2m"
+      },
+      "next": "ft_kiddy_success"
+    },
+    {
+      "id": "ft_kiddy_success",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Transferred GHS ${transfer_amount} to Kiddy Account ${kiddy_account} successfully. Ref: TRF-${now('ms')}",
+        "action": "transfer_kiddy",
+        "account": "$kiddy_account",
+        "amount": "$transfer_amount"
+      }
+    },
+    {
+      "id": "ft_member_account",
+      "type": "action",
+      "capability": "",
+      "label": "Enter Member Account / ID",
+      "await_input": true,
+      "input_variable": "member_account",
+      "prompt_config": {
+        "message": "Enter Member Account Number / Member ID:",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^[0-9]{6,12}$') ",
+        "timeout": "2m"
+      },
+      "next": "ft_member_amount"
+    },
+    {
+      "id": "ft_member_amount",
+      "type": "action",
+      "capability": "",
+      "label": "Enter Amount to Transfer to Member",
+      "await_input": true,
+      "input_variable": "transfer_amount",
+      "prompt_config": {
+        "message": "Enter Amount to transfer (GHS):",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^[0-9]+(\\.[0-9]{1,2})?$')",
+        "timeout": "2m"
+      },
+      "next": "ft_member_pin"
+    },
+    {
+      "id": "ft_member_pin",
+      "type": "action",
+      "capability": "",
+      "label": "Authorize Member Transfer",
+      "await_input": true,
+      "input_variable": "user_pin",
+      "prompt_config": {
+        "message": "Enter 4-digit PIN to transfer GHS ${transfer_amount} to Member Account ${member_account}:",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$') ",
+        "timeout": "2m"
+      },
+      "next": "ft_member_success"
+    },
+    {
+      "id": "ft_member_success",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Transferred GHS ${transfer_amount} to Member Account ${member_account} successfully. Ref: TRF-${now('ms')}",
+        "action": "transfer_member",
+        "account": "$member_account",
+        "amount": "$transfer_amount"
+      }
+    },
+    {
+      "id": "menu_enquiries",
+      "type": "action",
+      "capability": "",
+      "label": "Enquiries Menu",
+      "await_input": true,
+      "input_variable": "enquiry_choice",
+      "prompt_config": {
+        "message": "Enquiries\n1. Balances\n2. Mini Statement\n0. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-2]$')",
+        "timeout": "2m"
+      },
+      "next": "route_enquiries"
+    },
+    {
+      "id": "route_enquiries",
+      "type": "choice",
+      "label": "Route Enquiries selection",
+      "expression": "$enquiry_choice",
+      "cases": {
+        "0": "main_menu",
+        "1": "prep_enquiry_balance",
+        "2": "prep_enquiry_ministatement"
+      },
+      "default": "menu_enquiries"
+    },
+    {
+      "id": "prep_enquiry_balance",
+      "type": "noop",
+      "assign": {
+        "enquiry_type": "balance",
+        "enquiry_title": "Balances"
+      },
+      "next": "menu_enquiry_accounts"
+    },
+    {
+      "id": "prep_enquiry_ministatement",
+      "type": "noop",
+      "assign": {
+        "enquiry_type": "ministatement",
+        "enquiry_title": "Mini Statement"
+      },
+      "next": "menu_enquiry_accounts"
+    },
+    {
+      "id": "menu_enquiry_accounts",
+      "type": "action",
+      "capability": "",
+      "label": "Select Account for Enquiry",
+      "await_input": true,
+      "input_variable": "account_selection",
+      "prompt_config": {
+        "message": "${enquiry_title}\nSelect Account:\n1. Flexy Account\n2. Kiddy Account\n3. Savings Account\n4. Shares Account\n5. Loan Account\n0. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-5]$')",
+        "timeout": "2m"
+      },
+      "next": "route_enquiry_accounts"
+    },
+    {
+      "id": "route_enquiry_accounts",
+      "type": "choice",
+      "label": "Route Account selection and assign code",
+      "expression": "$account_selection",
+      "cases": {
+        "0": "menu_enquiries",
+        "1": "set_enquiry_flexy",
+        "2": "set_enquiry_kiddy",
+        "3": "set_enquiry_savings",
+        "4": "set_enquiry_shares",
+        "5": "set_enquiry_loan"
+      },
+      "default": "menu_enquiry_accounts"
+    },
+    {
+      "id": "set_enquiry_flexy",
+      "type": "noop",
+      "assign": {
+        "account_code": "F",
+        "account_name": "Flexy Account"
+      },
+      "next": "prompt_enquiry_pin"
+    },
+    {
+      "id": "set_enquiry_kiddy",
+      "type": "noop",
+      "assign": {
+        "account_code": "K",
+        "account_name": "Kiddy Account"
+      },
+      "next": "prompt_enquiry_pin"
+    },
+    {
+      "id": "set_enquiry_savings",
+      "type": "noop",
+      "assign": {
+        "account_code": "U",
+        "account_name": "Savings Deposit Account"
+      },
+      "next": "prompt_enquiry_pin"
+    },
+    {
+      "id": "set_enquiry_shares",
+      "type": "noop",
+      "assign": {
+        "account_code": "S",
+        "account_name": "Shares Account"
+      },
+      "next": "prompt_enquiry_pin"
+    },
+    {
+      "id": "set_enquiry_loan",
+      "type": "noop",
+      "assign": {
+        "account_code": "L",
+        "account_name": "Loan Account"
+      },
+      "next": "prompt_enquiry_pin"
+    },
+    {
+      "id": "prompt_enquiry_pin",
+      "type": "action",
+      "capability": "",
+      "label": "Prompt for 4-digit PIN",
+      "await_input": true,
+      "input_variable": "user_pin",
+      "prompt_config": {
+        "message": "Enter 4-digit PIN for ${account_name}:",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$') ",
+        "timeout": "2m"
+      },
+      "next": "route_enquiry_dispatch"
+    },
+    {
+      "id": "route_enquiry_dispatch",
+      "type": "choice",
+      "label": "Dispatch to Balance or Mini Statement API",
+      "expression": "$enquiry_type",
+      "cases": {
+        "balance": "call_balance_api",
+        "ministatement": "call_mini_statement_api"
+      },
+      "default": "call_balance_api"
+    },
+    {
+      "id": "call_balance_api",
+      "type": "command",
+      "command": "http.post",
+      "label": "Fetch Account Balance API",
+      "http_request": {
+        "url": "https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/smart-suite/get-account-balance",
+        "headers": {
+          "ClientId": "TDEXLvnWgM",
+          "ClientSecret": "49797884938483",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "phoneNo": "${coalesce(phoneNo, msisdn)}",
+          "pin": "${user_pin}",
+          "accountType": "${account_code}"
+        },
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "api_response": "$.body",
+        "api_status": "$.status"
+      },
+      "on_error": "enquiry_api_transport_error",
+      "next": "check_api_response"
+    },
+    {
+      "id": "call_mini_statement_api",
+      "type": "command",
+      "command": "http.post",
+      "label": "Fetch Mini Statement API",
+      "http_request": {
+        "url": "https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/smart-suite/get-mini-statement",
+        "headers": {
+          "ClientId": "TDEXLvnWgM",
+          "ClientSecret": "47809b129a3549c48",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "phoneNo": "${coalesce(phoneNo, msisdn)}",
+          "pin": "${user_pin}",
+          "accountType": "${account_code}",
+          "serialNo": ""
+        },
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "api_response": "$.body",
+        "api_status": "$.status"
+      },
+      "on_error": "enquiry_api_transport_error",
+      "next": "check_api_response"
+    },
+    {
+      "id": "check_api_response",
+      "type": "if",
+      "label": "Check if API returned success",
+      "condition": "api_response != null && api_response.success == true",
+      "then": "enquiry_display_success",
+      "else": "enquiry_display_api_rejection"
+    },
+    {
+      "id": "enquiry_display_success",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${api_response.message}",
+        "success": true,
+        "action": "enquiry",
+        "account": "$account_name",
+        "account_code": "$account_code",
+        "enquiry_type": "$enquiry_type"
+      }
+    },
+    {
+      "id": "enquiry_display_api_rejection",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(api_response.message, 'Dear customer, your request could not be completed. Please check your PIN and try again.')}",
+        "success": false,
+        "action": "enquiry",
+        "code": "${coalesce(api_response.code, 1)}"
+      }
+    },
+    {
+      "id": "enquiry_api_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Dear customer, our banking enquiry service is temporarily unavailable. Please try again in a few moments or contact support.",
+        "success": false,
+        "action": "enquiry",
+        "error_code": "${coalesce(error.code, 'HTTP_ERROR')}",
+        "error_detail": "${coalesce(error.message, 'Network unreachable')}"
+      },
+      "message": "Dear customer, our banking enquiry service is temporarily unavailable. Please try again in a few moments or contact support."
+    },
+    {
+      "id": "menu_change_pin",
+      "type": "action",
+      "capability": "",
+      "label": "Enter Current PIN",
+      "await_input": true,
+      "input_variable": "current_pin",
+      "prompt_config": {
+        "message": "Change PIN\nEnter Current 4-digit PIN:",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$') ",
+        "timeout": "2m"
+      },
+      "next": "pin_enter_new"
+    },
+    {
+      "id": "pin_enter_new",
+      "type": "action",
+      "capability": "",
+      "label": "Enter New PIN",
+      "await_input": true,
+      "input_variable": "new_pin",
+      "prompt_config": {
+        "message": "Enter New 4-digit PIN:",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$') ",
+        "timeout": "2m"
+      },
+      "next": "pin_confirm_new"
+    },
+    {
+      "id": "pin_confirm_new",
+      "type": "action",
+      "capability": "",
+      "label": "Confirm New PIN",
+      "await_input": true,
+      "input_variable": "confirm_pin",
+      "prompt_config": {
+        "message": "Confirm New 4-digit PIN:",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$') ",
+        "timeout": "2m"
+      },
+      "next": "check_pin_match"
+    },
+    {
+      "id": "check_pin_match",
+      "type": "if",
+      "label": "Verify New PIN matches Confirmation",
+      "condition": "new_pin == confirm_pin",
+      "then": "pin_change_success",
+      "else": "pin_change_mismatch"
+    },
+    {
+      "id": "pin_change_success",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Your PIN has been changed successfully. Do not share your PIN with anyone.",
+        "action": "change_pin",
+        "status": "pin_changed"
+      }
+    },
+    {
+      "id": "pin_change_mismatch",
+      "type": "terminate",
+      "status": "failure",
+      "output": {
+        "message": "PIN change failed: New PIN and Confirmation PIN do not match. Please try again.",
+        "action": "change_pin",
+        "status": "pin_mismatch"
+      }
+    },
+    {
+      "id": "operation_cancelled",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Operation cancelled. Thank you for banking with Sapo Bank.",
+        "action": "cancelled"
+      }
+    }
+  ]
+}

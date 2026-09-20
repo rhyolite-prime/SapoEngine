@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <unistd.h>
 
 using namespace sapo;
 using nlohmann::json;
