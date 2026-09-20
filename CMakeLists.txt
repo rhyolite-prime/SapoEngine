@@ -56,6 +56,22 @@ target_link_libraries(sapo_core PUBLIC sapo_vendored Threads::Threads)
 target_compile_features(sapo_core PUBLIC cxx_std_23)
 
 if(SAPO_ENABLE_CPR)
+    find_package(cpr CONFIG QUIET)
+    if(NOT cpr_FOUND)
+        include(FetchContent)
+        set(CPR_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+        FetchContent_Declare(
+                cpr
+                GIT_REPOSITORY https://github.com/libcpr/cpr.git
+                GIT_TAG 1.10.5
+        )
+        FetchContent_MakeAvailable(cpr)
+    endif()
+    target_link_libraries(sapo_core PUBLIC cpr::cpr)
+    target_compile_definitions(sapo_core PUBLIC SAPO_ENABLE_CPR=1)
+endif()
+
+if(SAPO_ENABLE_CPR)
     find_package(cpr CONFIG REQUIRED)
     target_link_libraries(sapo_core PUBLIC cpr::cpr)
     target_compile_definitions(sapo_core PUBLIC SAPO_ENABLE_CPR=1)

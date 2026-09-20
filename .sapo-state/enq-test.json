@@ -1,0 +1,47 @@
+{
+  "blueprint_id": "daccu_ussd_service",
+  "blueprint_version": "",
+  "child_sessions": [],
+  "context": {
+    "account_code": "F",
+    "account_name": "Flexy Account",
+    "account_selection": "1",
+    "bank_name": "Sapo Bank",
+    "currency": "GHS",
+    "enquiry_choice": "1",
+    "enquiry_title": "Balances",
+    "enquiry_type": "balance",
+    "main_menu_choice": "4",
+    "phoneNo": "0242602262",
+    "session": {
+      "correlation_id": "",
+      "depth": 0,
+      "execution_id": "a6e94260-7ffc-4907-9022-2907d658b92b",
+      "id": "enq-test",
+      "started_at_ms": 1789905270928,
+      "workflow": "daccu_ussd_service"
+    },
+    "user_pin": "7002"
+  },
+  "correlation_id": "",
+  "created_ms": 1789905449151,
+  "cursor": "enquiry_api_transport_error",
+  "depth": 0,
+  "error": "",
+  "execution_id": "a6e94260-7ffc-4907-9022-2907d658b92b",
+  "frames": [],
+  "node_visits": 16,
+  "parent_session": "",
+  "pending": {},
+  "result": {
+    "action": "enquiry",
+    "error_code": "NOT_IMPLEMENTED",
+    "error_detail": "no HTTP transport is compiled in — rebuild with -DSAPO_ENABLE_CPR=ON or inject a transport into TaskServices (last requested: POST https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/smart-suite/get-account-balance)",
+    "message": "Dear customer, our banking enquiry service is temporarily unavailable. Please try again in a few moments or contact support.",
+    "success": false
+  },
+  "session_id": "enq-test",
+  "status": "completed",
+  "timers": [],
+  "updated_ms": 1789905449151
+}
