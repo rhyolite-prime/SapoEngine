@@ -63,6 +63,10 @@ see [INTEGRATING.md](INTEGRATING.md) and [`examples/drogon`](../examples/drogon)
 ## Notes
 
 - **cpr version is pinned by the vendored tree** (`src/third_party/cpr`, 1.10.5), so builds are
+
+## Notes
+
+- **cpr version is pinned by the vendored tree** (`src/third_party/cpr`, 1.10.5), so builds are
   identical on every machine — no Homebrew/apt cpr version drift. To upgrade, replace the tree
   with a newer release and keep `CprTransport.cpp` against the new API.
 - **IDE include resolution:** `#include <cpr/cpr.h>` in `src/http/CprTransport.cpp` only resolves
