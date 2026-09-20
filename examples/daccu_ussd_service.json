@@ -713,7 +713,7 @@
       "http_request": {
         "url": "https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/smart-suite/get-account-balance",
         "headers": {
-          "ClientId": "zigi-ta",
+          "ClientId": "TDEXLvnWgM",
           "ClientSecret": "49797884938483",
           "Content-Type": "application/json"
         },
