@@ -10,10 +10,11 @@ project(sapo_engine
 # ---------------------------------------------------------------------------
 option(SAPO_BUILD_TESTS "Build the Catch2 test suite" ON)
 option(SAPO_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
-# HTTP: the engine ships a NullTransport by default. cpr/libcurl are fetched
-# from GitHub, which offline/air-gapped builds cannot reach, so the transport is
-# opt-in (docs/BUILDING.md).
-option(SAPO_ENABLE_CPR "Build the libcurl-backed HTTP transport (needs cpr)" OFF)
+# HTTP: the engine ships a NullTransport by default. The cpr wrapper is
+# vendored under src/third_party/cpr, so enabling the transport needs no
+# network — only system libcurl dev headers (docs/BUILDING.md):
+#   Ubuntu/Debian: sudo apt install libcurl4-openssl-dev
+option(SAPO_ENABLE_CPR "Build the libcurl-backed HTTP transport (vendored cpr + system libcurl)" OFF)
 set(SAPO_SANITIZERS "" CACHE STRING "Comma-separated sanitizers, e.g. address,undefined")
 
 set(CMAKE_CXX_STANDARD 23)
@@ -28,7 +29,7 @@ find_package(Threads REQUIRED)
 # ---------------------------------------------------------------------------
 # Vendored dependencies
 #
-# The engine builds with no network access: nlohmann/json and Catch2 are
+# The engine builds with no network access: nlohmann/json, Catch2 and cpr are
 # vendored under src/third_party/ (exprtk.hpp is kept for reference only — the
 # expression language is Sapo Expression Language, see src/runtime/expressions).
 # ---------------------------------------------------------------------------
@@ -56,17 +57,21 @@ target_link_libraries(sapo_core PUBLIC sapo_vendored Threads::Threads)
 target_compile_features(sapo_core PUBLIC cxx_std_23)
 
 if(SAPO_ENABLE_CPR)
-    find_package(cpr CONFIG QUIET)
-    if(NOT cpr_FOUND)
-        include(FetchContent)
-        set(CPR_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-        FetchContent_Declare(
-                cpr
-                GIT_REPOSITORY https://github.com/libcpr/cpr.git
-                GIT_TAG 1.10.5
-        )
-        FetchContent_MakeAvailable(cpr)
+    # cpr is vendored (src/third_party/cpr, upstream 1.10.5, BSD-3) and always
+    # built against the system libcurl: deterministic version everywhere, no
+    # GitHub fetch, no cpr package to install. Pre-check libcurl so the failure
+    # message says which package to install instead of cpr's generic one.
+    find_package(CURL COMPONENTS HTTP)
+    if(NOT CURL_FOUND)
+        message(FATAL_ERROR
+                "SAPO_ENABLE_CPR=ON requires libcurl development headers:\n"
+                "  Ubuntu/Debian: sudo apt install libcurl4-openssl-dev\n"
+                "  Fedora:        sudo dnf install libcurl-devel\n"
+                "  macOS:         brew install curl")
     endif()
+    set(CPR_USE_SYSTEM_CURL ON CACHE BOOL "" FORCE)
+    set(CPR_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/third_party/cpr EXCLUDE_FROM_ALL)
     target_link_libraries(sapo_core PUBLIC cpr::cpr)
     target_compile_definitions(sapo_core PUBLIC SAPO_ENABLE_CPR=1)
 endif()
