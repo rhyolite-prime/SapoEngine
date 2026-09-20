@@ -71,12 +71,6 @@ if(SAPO_ENABLE_CPR)
     target_compile_definitions(sapo_core PUBLIC SAPO_ENABLE_CPR=1)
 endif()
 
-if(SAPO_ENABLE_CPR)
-    find_package(cpr CONFIG REQUIRED)
-    target_link_libraries(sapo_core PUBLIC cpr::cpr)
-    target_compile_definitions(sapo_core PUBLIC SAPO_ENABLE_CPR=1)
-endif()
-
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     target_compile_options(sapo_core PRIVATE -Wall -Wextra -Wno-unused-parameter)
     if(SAPO_WARNINGS_AS_ERRORS)
