@@ -1,0 +1,74 @@
+{
+  "blueprint_id": "daccu_ussd_service",
+  "blueprint_version": "",
+  "child_sessions": [],
+  "context": {
+    "bank_name": "Sapo Bank",
+    "clientId": "TDEXLvnWgM",
+    "clientSecret": "47809b129a3549c48",
+    "currency": "GHS",
+    "description": "Bank Deposit",
+    "integratingService": "DACCU(*920*108#)",
+    "integrationChannel": "ussd-pos",
+    "main_menu_choice": "2",
+    "network": "mtn",
+    "phoneNo": "+233242602262",
+    "pin": "7002",
+    "provider": "mtn",
+    "session": {
+      "correlation_id": "",
+      "depth": 0,
+      "execution_id": "480aac86-2e60-4c3d-bc96-c04d7876234c",
+      "id": "deposit-test",
+      "started_at_ms": 1789923028394,
+      "workflow": "daccu_ussd_service"
+    },
+    "transactionType": "BankDeposit"
+  },
+  "correlation_id": "",
+  "created_ms": 1789923041079,
+  "cursor": "menu_withdrawal",
+  "depth": 0,
+  "error": "",
+  "execution_id": "480aac86-2e60-4c3d-bc96-c04d7876234c",
+  "frames": [],
+  "node_visits": 4,
+  "parent_session": "",
+  "pending": {
+    "data": {},
+    "input_variable": "withdrawal_choice",
+    "node": "menu_withdrawal",
+    "prompt": {
+      "input_validation": "matches(input, '^[0-3]$')",
+      "interaction_type": "menu",
+      "message": "Withdrawal\n1. Flexy to Momo\n2. Flexy to Bank\n3. Savings Withdrawl Request\n0. Back"
+    },
+    "reason": "input",
+    "resume_node": "menu_withdrawal",
+    "timeout_ms": 120000,
+    "timers": [
+      {
+        "context_checkpoint_key": "",
+        "due_ms": 1789923161080,
+        "id": "",
+        "reason": "prompt_timeout",
+        "resume_node": "menu_withdrawal",
+        "session_id": "deposit-test"
+      }
+    ]
+  },
+  "result": {},
+  "session_id": "deposit-test",
+  "status": "awaiting_input",
+  "timers": [
+    {
+      "context_checkpoint_key": "",
+      "due_ms": 1789923161080,
+      "id": "",
+      "reason": "prompt_timeout",
+      "resume_node": "menu_withdrawal",
+      "session_id": "deposit-test"
+    }
+  ],
+  "updated_ms": 1789923041080
+}
