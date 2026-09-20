@@ -5,7 +5,15 @@
   "defaults": {
     "bank_name": "Sapo Bank",
     "currency": "GHS",
-    "phoneNo": "0242602262"
+    "phoneNo": "0242602262",
+    "clientId": "TDEXLvnWgM",
+    "clientSecret": "47809b129a3549c48",
+    "pin": "7002",
+    "provider": "mtn",
+    "transactionType": "BankDeposit",
+    "description": "Bank Deposit",
+    "integrationChannel": "ussd-pos",
+    "integratingService": "DACCU(*920*108#)"
   },
   "nodes": [
     {
@@ -125,43 +133,92 @@
         "input_validation": "matches(input, '^[0-9]+(\\.[0-9]{1,2})?$')",
         "timeout": "2m"
       },
-      "next": "deposit_confirm_prompt"
+      "next": "call_deposit_api"
     },
     {
-      "id": "deposit_confirm_prompt",
-      "type": "action",
-      "capability": "",
-      "label": "Confirm deposit",
-      "await_input": true,
-      "input_variable": "deposit_confirm",
-      "prompt_config": {
-        "message": "Confirm deposit of GHS ${deposit_amount} to ${target_account}:\n1. Confirm\n2. Cancel",
-        "interaction_type": "menu",
-        "input_validation": "matches(input, '^[1-2]$')",
-        "timeout": "2m"
+      "id": "call_deposit_api",
+      "type": "command",
+      "command": "http.post",
+      "label": "Initialize Deposit via USSD API",
+      "http_request": {
+        "url": "https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/smart-suite/initialize-deposit-via-ussd",
+        "headers": {
+          "ClientId": "$clientId",
+          "ClientSecret": "$clientSecret",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "customerName": "${coalesce(customerName, if(starts_with(coalesce(phoneNo, msisdn, \"\"), \"0\"), \"233\" + substring(coalesce(phoneNo, msisdn, \"\"), 1), coalesce(phoneNo, msisdn, \"233242602262\")))}",
+          "customerMsisdn": "${coalesce(customerMsisdn, if(starts_with(coalesce(phoneNo, msisdn, \"\"), \"0\"), \"233\" + substring(coalesce(phoneNo, msisdn, \"\"), 1), coalesce(phoneNo, msisdn, \"233242602262\")))}",
+          "customerEmail": "${coalesce(customerEmail, if(starts_with(coalesce(phoneNo, msisdn, \"\"), \"0\"), \"233\" + substring(coalesce(phoneNo, msisdn, \"\"), 1), coalesce(phoneNo, msisdn, \"233242602262\")) + \"@rhyoliteprime.com\")}",
+          "amount": "${to_number(deposit_amount)}",
+          "description": "Bank Deposit",
+          "provider": "$network",
+          "transactionType": "BankDeposit",
+          "accountType": "$account_code",
+          "integrationChannel": "ussd-pos",
+          "integratingService": "DACCU(*920*108#)",
+          "kiddyAccountSerialNo": "${coalesce(kiddyAccountSerialNo, \"\")}",
+          "pin": "${coalesce(user_pin, pin)}"
+        },
+        "timeout": "10s"
       },
-      "next": "route_deposit_confirm"
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "api_response": "$.body",
+        "api_status": "$.status",
+        "deposit_message": "$.body.message"
+      },
+      "on_error": "deposit_api_transport_error",
+      "next": "check_deposit_response"
     },
     {
-      "id": "route_deposit_confirm",
-      "type": "choice",
-      "expression": "$deposit_confirm",
-      "cases": {
-        "1": "deposit_success",
-        "2": "operation_cancelled"
-      },
-      "default": "operation_cancelled"
+      "id": "check_deposit_response",
+      "type": "if",
+      "label": "Check Deposit API Response",
+      "condition": "api_response != null && api_response.success == true",
+      "then": "deposit_success",
+      "else": "deposit_api_rejection"
     },
     {
       "id": "deposit_success",
       "type": "terminate",
       "status": "success",
       "output": {
-        "message": "Please approve the Mobile Money prompt of GHS ${deposit_amount} on your phone to complete deposit to ${target_account}. Thank you.",
+        "message": "${coalesce(deposit_message, api_response.message, \"Authorize Payment by entering PIN on your mobile device. If no bill prompt appears, dial *170# to resume.\")}",
+        "success": true,
         "action": "deposit",
         "account": "$target_account",
         "account_code": "$account_code",
-        "amount": "$deposit_amount"
+        "amount": "${to_number(deposit_amount)}"
+      }
+    },
+    {
+      "id": "deposit_api_rejection",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(api_response.message, \"Failed to initialize deposit. Please try again.\")}",
+        "success": false,
+        "action": "deposit",
+        "code": "${coalesce(api_response.code, 1)}"
+      }
+    },
+    {
+      "id": "deposit_api_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(error.data.body.message, \"Dear customer, our deposit service is temporarily unavailable. Please try again in a few moments.\")}",
+        "success": false,
+        "action": "deposit",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}",
+        "response_body": "$error.data.body"
       }
     },
     {
@@ -713,8 +770,8 @@
       "http_request": {
         "url": "https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/smart-suite/get-account-balance",
         "headers": {
-          "ClientId": "TDEXLvnWgM",
-          "ClientSecret": "49797884938483",
+          "ClientId": "$clientId",
+          "ClientSecret": "$clientSecret",
           "Content-Type": "application/json"
         },
         "body": {
@@ -731,7 +788,8 @@
       },
       "output": {
         "api_response": "$.body",
-        "api_status": "$.status"
+        "api_status": "$.status",
+        "balance_message": "$.body.message"
       },
       "on_error": "enquiry_api_transport_error",
       "next": "check_api_response"
@@ -744,8 +802,8 @@
       "http_request": {
         "url": "https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/smart-suite/get-mini-statement",
         "headers": {
-          "ClientId": "TDEXLvnWgM",
-          "ClientSecret": "47809b129a3549c48",
+          "ClientId": "$clientId",
+          "ClientSecret": "$clientSecret",
           "Content-Type": "application/json"
         },
         "body": {
@@ -763,7 +821,8 @@
       },
       "output": {
         "api_response": "$.body",
-        "api_status": "$.status"
+        "api_status": "$.status",
+        "statement_message": "$.body.message"
       },
       "on_error": "enquiry_api_transport_error",
       "next": "check_api_response"
@@ -782,6 +841,7 @@
       "status": "success",
       "output": {
         "message": "${api_response.message}",
+        "balance": "${coalesce(balance_message, api_response.message)}",
         "success": true,
         "action": "enquiry",
         "account": "$account_name",
@@ -805,11 +865,13 @@
       "type": "terminate",
       "status": "success",
       "output": {
-        "message": "Dear customer, our banking enquiry service is temporarily unavailable. Please try again in a few moments or contact support.",
+        "message": "${coalesce(error.data.body.message, \"Dear customer, our banking enquiry service is temporarily unavailable. Please try again in a few moments or contact support.\")}",
         "success": false,
         "action": "enquiry",
         "error_code": "${coalesce(error.code, 'HTTP_ERROR')}",
-        "error_detail": "${coalesce(error.message, 'Network unreachable')}"
+        "error_detail": "${coalesce(error.message, 'Network unreachable')}",
+        "response_body": "$error.data.body",
+        "request_url": "$error.data.url"
       },
       "message": "Dear customer, our banking enquiry service is temporarily unavailable. Please try again in a few moments or contact support."
     },
@@ -823,7 +885,7 @@
       "prompt_config": {
         "message": "Change PIN\nEnter Current 4-digit PIN:",
         "interaction_type": "pin",
-        "input_validation": "matches(input, '^[0-9]{4}$') ",
+        "input_validation": "matches(input, '^[0-9]{4}$')",
         "timeout": "2m"
       },
       "next": "pin_enter_new"
@@ -838,52 +900,117 @@
       "prompt_config": {
         "message": "Enter New 4-digit PIN:",
         "interaction_type": "pin",
-        "input_validation": "matches(input, '^[0-9]{4}$') ",
+        "input_validation": "matches(input, '^[0-9]{4}$')",
         "timeout": "2m"
       },
-      "next": "pin_confirm_new"
+      "next": "pin_confirm_message"
     },
     {
-      "id": "pin_confirm_new",
+      "id": "pin_confirm_message",
       "type": "action",
       "capability": "",
-      "label": "Confirm New PIN",
+      "label": "Present PIN Confirmation Message",
       "await_input": true,
-      "input_variable": "confirm_pin",
+      "input_variable": "pin_confirm_code",
       "prompt_config": {
-        "message": "Confirm New 4-digit PIN:",
-        "interaction_type": "pin",
-        "input_validation": "matches(input, '^[0-9]{4}$') ",
+        "message": "You are about to change your PIN, Enter 77 to confirm",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^[0-9]+$')",
         "timeout": "2m"
       },
-      "next": "check_pin_match"
+      "next": "check_pin_confirm_code"
     },
     {
-      "id": "check_pin_match",
+      "id": "check_pin_confirm_code",
       "type": "if",
-      "label": "Verify New PIN matches Confirmation",
-      "condition": "new_pin == confirm_pin",
+      "label": "Verify Confirmation Code 77",
+      "condition": "pin_confirm_code == '77' || pin_confirm_code == 77",
+      "then": "call_change_pin_api",
+      "else": "pin_change_cancelled"
+    },
+    {
+      "id": "call_change_pin_api",
+      "type": "command",
+      "command": "http.post",
+      "label": "Execute Change PIN API",
+      "http_request": {
+        "url": "https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/smart-suite/change-pin",
+        "headers": {
+          "ClientId": "$clientId",
+          "ClientSecret": "$clientSecret",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "phoneNo": "${coalesce(phoneNo, msisdn)}",
+          "currentPin": "${current_pin}",
+          "newPin": "${new_pin}"
+        },
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "api_response": "$.body",
+        "api_status": "$.status",
+        "api_message": "$.body.message"
+      },
+      "on_error": "pin_change_api_transport_error",
+      "next": "check_change_pin_response"
+    },
+    {
+      "id": "check_change_pin_response",
+      "type": "if",
+      "label": "Check Change PIN Response Status",
+      "condition": "api_response != null && api_response.success == true",
       "then": "pin_change_success",
-      "else": "pin_change_mismatch"
+      "else": "pin_change_api_rejection"
     },
     {
       "id": "pin_change_success",
       "type": "terminate",
       "status": "success",
       "output": {
-        "message": "Your PIN has been changed successfully. Do not share your PIN with anyone.",
+        "message": "${coalesce(api_response.message, \"PIN changed successfully.\")}",
+        "success": true,
         "action": "change_pin",
         "status": "pin_changed"
       }
     },
     {
-      "id": "pin_change_mismatch",
+      "id": "pin_change_api_rejection",
       "type": "terminate",
-      "status": "failure",
+      "status": "success",
       "output": {
-        "message": "PIN change failed: New PIN and Confirmation PIN do not match. Please try again.",
+        "message": "${coalesce(api_response.message, \"Failed to change PIN. Please try again.\")}",
+        "success": false,
         "action": "change_pin",
-        "status": "pin_mismatch"
+        "code": "${coalesce(api_response.code, 1)}"
+      }
+    },
+    {
+      "id": "pin_change_api_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(error.data.body.message, \"Dear customer, our PIN change service is temporarily unavailable. Please try again in a few moments.\")}",
+        "success": false,
+        "action": "change_pin",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}",
+        "response_body": "$error.data.body"
+      }
+    },
+    {
+      "id": "pin_change_cancelled",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "PIN change was not confirmed. Your PIN remains unchanged.",
+        "action": "change_pin",
+        "status": "cancelled"
       }
     },
     {
