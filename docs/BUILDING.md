@@ -52,6 +52,14 @@ sudo cmake --install build --prefix /opt/sapo    # binary + headers + schemas
 On a minimal server only the libcurl runtime is needed (no dev package):
 `sudo apt install -y libcurl4`.
 
+## Embedding the engine in your own service (Drogon)
+
+To deploy the DSL inside an existing C++ API instead of running `sapoc` — link
+`libsapo_core.a` (or `find_package(SapoEngine)`) and drive
+`sapo::runtime::VirtualMachine` from your handlers. Full guide, endpoint design,
+state-store and transport options, and a runnable reference service:
+see [INTEGRATING.md](INTEGRATING.md) and [`examples/drogon`](../examples/drogon).
+
 ## Notes
 
 - **cpr version is pinned by the vendored tree** (`src/third_party/cpr`, 1.10.5), so builds are
