@@ -321,6 +321,12 @@ checkpoints live:
 | Redis adapter (T4.1, bring-your-own) | multi-node fleets, TTL-based expiry of abandoned sessions |
 | PostgreSQL adapter (T4.1) | audit-grade retention, joins against business tables |
 
+Choosing between Redis, Tarantool and PostgreSQL — including the throughput/latency
+arithmetic for a USSD fleet, the concurrency control the `IStateStore` seam still needs, and
+why the sketched adapter below is not production-complete — is covered in
+[`STATE-STORE-REDIS-VS-TARANTOOL.md`](STATE-STORE-REDIS-VS-TARANTOOL.md). Read it before
+writing an adapter.
+
 A Redis adapter is ~40 lines because `SessionCheckpoint` serializes to a single JSON blob.
 It is called on the engine's own (blocking) execution context, so use a **synchronous**
 client (e.g. redis-plus-plus), not Drogon's async `RedisClient`:
