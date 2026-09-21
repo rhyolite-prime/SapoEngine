@@ -343,9 +343,12 @@ return 0
         }
         if (!prune.empty()) {
             try {
-                m_client->pipeline(prune);
+                // Best-effort index cleanup: the replies are irrelevant here, but the
+                // call is [[nodiscard]] — bind them to an ignored local instead of
+                // discarding, which is what Clang's -Wunused-result wants to see.
+                [[maybe_unused]] const auto prune_replies = m_client->pipeline(prune);
             } catch (const std::exception &) {
-                // Best-effort maintenance; never fail a read because of it.
+                // Never fail a read because of index maintenance.
             }
         }
 
