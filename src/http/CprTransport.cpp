@@ -47,12 +47,12 @@ namespace sapo::http {
                                                                  : request.body->dump()});
         }
         if (request.timeout_ms > 0) session.SetTimeout(std::chrono::milliseconds(request.timeout_ms));
-        session.SetEnableRedirects(request.follow_redirects);
+        session.SetRedirect(cpr::Redirect{request.follow_redirects});
         if (request.basic_auth_user.has_value()) {
-            session.SetAuthentication(cpr::Authenticate{
-                cpr::AuthMode(cpr::authentication::basic),
+            session.SetAuth(cpr::Authentication{
                 request.basic_auth_user.value_or(""),
-                request.basic_auth_password.value_or("")});
+                request.basic_auth_password.value_or(""),
+                cpr::AuthMode::BASIC});
         }
         if (request.bearer_token.has_value()) {
             cpr::Header bearer = toHeaders(request.headers);

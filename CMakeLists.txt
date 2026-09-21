@@ -60,6 +60,7 @@ if(SAPO_ENABLE_CPR)
     if(NOT cpr_FOUND)
         include(FetchContent)
         set(CPR_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+        set(CPR_USE_SYSTEM_CURL ON CACHE BOOL "" FORCE)
         FetchContent_Declare(
             cpr
             GIT_REPOSITORY https://github.com/libcpr/cpr.git
