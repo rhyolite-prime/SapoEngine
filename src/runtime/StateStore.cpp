@@ -50,7 +50,8 @@ namespace sapo::runtime {
                               {"child_sessions", child_sessions},
                               {"created_ms", created_ms},
                               {"updated_ms", updated_ms},
-                              {"node_visits", node_visits}};
+                              {"node_visits", node_visits},
+                              {"version", version}};
     }
 
     SessionCheckpoint SessionCheckpoint::fromJson(const nlohmann::json &value) {
@@ -80,7 +81,17 @@ namespace sapo::runtime {
         checkpoint.created_ms = value.value("created_ms", 0LL);
         checkpoint.updated_ms = value.value("updated_ms", 0LL);
         checkpoint.node_visits = value.value("node_visits", static_cast<size_t>(0));
+        checkpoint.version = value.value("version", 0LL);
         return checkpoint;
+    }
+
+    const char *toString(SaveResult result) {
+        switch (result) {
+            case SaveResult::Ok: return "ok";
+            case SaveResult::VersionConflict: return "version_conflict";
+            case SaveResult::Gone: return "gone";
+        }
+        return "ok";
     }
 
     // ---------------------------------------------------------------------
@@ -88,7 +99,29 @@ namespace sapo::runtime {
     // ---------------------------------------------------------------------
     void InMemoryStateStore::save(const SessionCheckpoint &checkpoint) {
         std::scoped_lock lock(m_mutex);
-        m_sessions[checkpoint.session_id] = checkpoint;
+        // Unconditional write, but the version still advances so that a
+        // following saveIf() has something to compare against. Every store must
+        // behave identically here or a caller's expectations depend on which
+        // adapter is wired up.
+        const int64_t previous = m_sessions[checkpoint.session_id].version; // default-constructs at 0
+        SessionCheckpoint next = checkpoint;
+        next.version = previous + 1;
+        m_sessions[checkpoint.session_id] = next;
+    }
+
+    SaveOutcome InMemoryStateStore::saveIf(const SessionCheckpoint &checkpoint, int64_t expected_version) {
+        std::scoped_lock lock(m_mutex);
+        const auto it = m_sessions.find(checkpoint.session_id);
+        const bool exists = it != m_sessions.end();
+        const int64_t current = exists ? it->second.version : 0;
+        if (current != expected_version) {
+            // Nothing is written: the winner's checkpoint stays intact.
+            return SaveOutcome{exists ? SaveResult::VersionConflict : SaveResult::Gone, current};
+        }
+        SessionCheckpoint next = checkpoint;
+        next.version = expected_version + 1;
+        m_sessions[checkpoint.session_id] = next;
+        return SaveOutcome{SaveResult::Ok, next.version};
     }
 
     std::optional<SessionCheckpoint> InMemoryStateStore::load(const std::string &session_id) const {
@@ -142,35 +175,70 @@ namespace sapo::runtime {
         return (std::filesystem::path(m_directory) / (safe + ".json")).string();
     }
 
+    namespace {
+        /// Reads and parses one checkpoint file. Assumes the caller already holds
+        /// `FileStateStore::m_mutex` (the mutex is not recursive, so `load()`
+        /// cannot be reused from `saveIf()`).
+        std::optional<SessionCheckpoint> readCheckpointAt(const std::string &path) {
+            std::ifstream in(path, std::ios::binary);
+            if (!in) return std::nullopt;
+            std::stringstream buffer;
+            buffer << in.rdbuf();
+            try {
+                return SessionCheckpoint::fromJson(nlohmann::json::parse(buffer.str()));
+            } catch (const std::exception &) {
+                return std::nullopt;
+            }
+        }
+
+        /// Write-to-temp + `rename`, so a reader never observes a partial file.
+        /// Assumes the caller holds the mutex. Throws `SapoError` on failure.
+        void writeCheckpointAtomically(const std::string &path, const SessionCheckpoint &checkpoint) {
+            const std::string temp = path + ".tmp";
+            {
+                std::ofstream out(temp, std::ios::binary | std::ios::trunc);
+                if (!out) {
+                    throw SapoError(ErrorCode::Store, "could not open '" + temp + "' for writing");
+                }
+                out << checkpoint.toJson().dump(2);
+            }
+            std::error_code error;
+            std::filesystem::rename(temp, path, error);
+            if (error) {
+                std::error_code ignored;
+                std::filesystem::remove(temp, ignored);
+                throw SapoError(ErrorCode::Store, "could not persist session '" + checkpoint.session_id + "' to " +
+                                                      path);
+            }
+        }
+    } // namespace
+
     void FileStateStore::save(const SessionCheckpoint &checkpoint) {
         const std::string path = pathFor(checkpoint.session_id);
         std::scoped_lock lock(m_mutex);
-        const std::string temp = path + ".tmp";
-        {
-            std::ofstream out(temp, std::ios::binary | std::ios::trunc);
-            out << checkpoint.toJson().dump(2);
+        const auto current = readCheckpointAt(path);
+        SessionCheckpoint next = checkpoint;
+        next.version = (current.has_value() ? current->version : 0) + 1;
+        writeCheckpointAtomically(path, next);
+    }
+
+    SaveOutcome FileStateStore::saveIf(const SessionCheckpoint &checkpoint, int64_t expected_version) {
+        const std::string path = pathFor(checkpoint.session_id);
+        std::scoped_lock lock(m_mutex);
+        const auto current = readCheckpointAt(path);
+        const int64_t current_version = current.has_value() ? current->version : 0;
+        if (current_version != expected_version) {
+            return SaveOutcome{current.has_value() ? SaveResult::VersionConflict : SaveResult::Gone, current_version};
         }
-        std::error_code error;
-        std::filesystem::rename(temp, path, error);
-        if (error) {
-            std::error_code ignored;
-            std::filesystem::remove(temp, ignored);
-            throw SapoError(ErrorCode::Internal, "could not persist session '" + checkpoint.session_id + "' to " +
-                                                     path);
-        }
+        SessionCheckpoint next = checkpoint;
+        next.version = expected_version + 1;
+        writeCheckpointAtomically(path, next);
+        return SaveOutcome{SaveResult::Ok, next.version};
     }
 
     std::optional<SessionCheckpoint> FileStateStore::load(const std::string &session_id) const {
         std::scoped_lock lock(m_mutex);
-        std::ifstream in(pathFor(session_id), std::ios::binary);
-        if (!in) return std::nullopt;
-        std::stringstream buffer;
-        buffer << in.rdbuf();
-        try {
-            return SessionCheckpoint::fromJson(nlohmann::json::parse(buffer.str()));
-        } catch (const std::exception &) {
-            return std::nullopt;
-        }
+        return readCheckpointAt(pathFor(session_id));
     }
 
     bool FileStateStore::remove(const std::string &session_id) {
@@ -186,14 +254,9 @@ namespace sapo::runtime {
         if (!std::filesystem::exists(m_directory, error)) return out;
         for (const auto &entry : std::filesystem::directory_iterator(m_directory, error)) {
             if (!entry.is_regular_file() || entry.path().extension() != ".json") continue;
-            std::ifstream in(entry.path(), std::ios::binary);
-            std::stringstream buffer;
-            buffer << in.rdbuf();
-            try {
-                out.push_back(SessionCheckpoint::fromJson(nlohmann::json::parse(buffer.str())));
-            } catch (const std::exception &) {
-                continue; // a corrupt file must not hide the healthy ones
-            }
+            auto checkpoint = readCheckpointAt(entry.path().string());
+            if (!checkpoint.has_value()) continue; // a corrupt file must not hide the healthy ones
+            out.push_back(std::move(*checkpoint));
         }
         std::sort(out.begin(), out.end(), [](const auto &a, const auto &b) { return a.session_id < b.session_id; });
         return out;

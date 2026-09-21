@@ -30,6 +30,7 @@ namespace sapo::runtime {
         HttpStatus,       // non-2xx response captured from an HTTP call
         Capability,       // plugin/capability execution failure
         DataSource,       // query provider failure
+        Store,            // state-store failure (connection, CAS conflict, corrupt checkpoint)
         Timeout,          // a wait / prompt / capability deadline expired
         Limit,            // max_iterations / recursion depth / rate limit hit
         NotImplemented,   // explicitly deferred capability or provider
@@ -47,6 +48,7 @@ namespace sapo::runtime {
             case ErrorCode::HttpStatus: return "HTTP_STATUS_ERROR";
             case ErrorCode::Capability: return "CAPABILITY_ERROR";
             case ErrorCode::DataSource: return "DATA_SOURCE_ERROR";
+            case ErrorCode::Store: return "STORE_ERROR";
             case ErrorCode::Timeout: return "TIMEOUT";
             case ErrorCode::Limit: return "LIMIT_EXCEEDED";
             case ErrorCode::NotImplemented: return "NOT_IMPLEMENTED";

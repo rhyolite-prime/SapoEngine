@@ -314,56 +314,151 @@ shared Redis adapter (§4) so any instance can resume any session.
 `IStateStore` (`src/runtime/StateStore.hpp`) is the seam; the engine never cares where
 checkpoints live:
 
-| Store | When |
-|---|---|
-| `InMemoryStateStore` (default) | tests, ephemeral runs only — sessions die with the process |
-| `FileStateStore` (ships) | single-node services; atomic one-JSON-file-per-session, `jq`-inspectable |
-| Redis adapter (T4.1, bring-your-own) | multi-node fleets, TTL-based expiry of abandoned sessions |
-| PostgreSQL adapter (T4.1) | audit-grade retention, joins against business tables |
+| Store | When | Status |
+|---|---|---|
+| `InMemoryStateStore` | tests, ephemeral runs — sessions die with the process | ships (default) |
+| `FileStateStore` | single-node services; atomic one-JSON-file-per-session, `jq`-inspectable | ships |
+| `redis::RedisStateStore` | multi-node fleets, TTL expiry of abandoned sessions | **ships** (`-DSAPO_ENABLE_REDIS=ON`) |
+| PostgreSQL adapter (T4.1) | audit-grade retention, joins against business tables | not built |
 
-Choosing between Redis, Tarantool and PostgreSQL — including the throughput/latency
-arithmetic for a USSD fleet, the concurrency control the `IStateStore` seam still needs, and
-why the sketched adapter below is not production-complete — is covered in
-[`STATE-STORE-REDIS-VS-TARANTOOL.md`](STATE-STORE-REDIS-VS-TARANTOOL.md). Read it before
-writing an adapter.
+Choosing between Redis, Tarantool and PostgreSQL — the throughput/latency arithmetic for a
+USSD fleet, and what each costs — is in
+[`STATE-STORE-REDIS-VS-TARANTOOL.md`](STATE-STORE-REDIS-VS-TARANTOOL.md).
 
-A Redis adapter is ~40 lines because `SessionCheckpoint` serializes to a single JSON blob.
-It is called on the engine's own (blocking) execution context, so use a **synchronous**
-client (e.g. redis-plus-plus), not Drogon's async `RedisClient`:
+### 4.1 Enabling the Redis store
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSAPO_ENABLE_CPR=ON -DSAPO_ENABLE_REDIS=ON
+```
+
+`SAPO_ENABLE_REDIS` gates **only** `src/redis/SocketRedisClient.cpp` — a RESP2 client written
+against POSIX sockets, so it pulls in no external library and still builds offline.
+`RedisStateStore` itself always compiles against the `IRedisClient` seam (§4.5).
+
+### 4.2 Configuring it
+
+`sapo-config.json`:
+
+```json
+{
+  "engine": {
+    "workers": 8,
+    "state_redis": { "$env": "SAPO_REDIS_URL" },
+    "state_redis_ttl": 900,
+    "state_redis_prefix": "sapo:session:",
+    "state_redis_pool": 16,
+    "state_redis_atomic_index": true
+  }
+}
+```
+
+```bash
+SAPO_REDIS_URL='redis://sapo:p%40ssw0rd@cache.internal:6379/0' sapo-server --config /etc/sapo/sapo-config.json
+```
+
+| Key | Default | Notes |
+|---|---|---|
+| `state_redis` | — | `redis://[user]:password@host[:port][/db]`. Use `{"$env": …}` / `{"$secret": …}`: the `engine` block is resolved explicitly so the credential never sits in the file. `rediss://` is refused, not silently downgraded to plaintext. |
+| `state_redis_ttl` | `900` | seconds. `0` disables expiry, which means abandoned sessions are never reclaimed. |
+| `state_redis_prefix` | `sapo:session:` | session hash prefix. |
+| `state_redis_pool` | `8` | connections. **Must be ≥ `engine.workers`**, or the pool — not Redis — becomes the serialization point. |
+| `state_redis_atomic_index` | `true` | set **`false` on Redis Cluster** (§4.4). |
+
+CLI equivalent for one-off runs: `sapoc run flow.json --state-redis "$SAPO_REDIS_URL" --state-ttl 900`.
+`--state-redis` overrides `--state-dir`.
+
+A config `state_dir` never replaces an injected shared store — only an in-memory or file one.
+Silently swapping Redis for a node-local directory would split the fleet's sessions across
+disks and break the cross-node resume the shared store exists to provide.
+
+Startup failures (unreachable server, bad URL, TLS scheme) are reported as `vm.start()`
+problems, which the production checklist already treats as deploy failures.
+
+### 4.3 What the adapter does that a naive one cannot
+
+Key layout:
+
+```
+sapo:session:<id>   HASH  blob | version | status | updated_ms
+sapo:idx:all        ZSET  member=<id> score=updated_ms
+sapo:idx:<status>   ZSET  member=<id> score=updated_ms     (six statuses)
+sapo:claim:<id>     STRING token, PX-bounded               (tryClaim)
+```
+
+A HASH rather than a plain string so the compare-and-swap reads a one-field `version`
+instead of `cjson.decode`-ing a ~1.5 KB blob **inside Lua** — script time blocks Redis's
+single command thread for every other client.
+
+- **`saveIf(checkpoint, expected_version)`** — atomic compare-and-swap in one `EVAL`, returning
+  `Ok` / `VersionConflict` (with the *winner's* version, so you can reload and retry) / `Gone`.
+  `SessionCheckpoint::version` is assigned by the store on every write. This is the primitive
+  that stops a gateway retry, a redial, or an API node and a queue worker from resuming one
+  session concurrently and re-running a side-effecting `command` node.
+- **`count(status)` is `ZCARD`** and **`list()` is a bounded `ZREVRANGE` + one pipelined
+  `HMGET` batch** — no `SCAN`, no `KEYS`, and `count()` is not stubbed to `0`.
+- **TTL on every write**, so abandoned sessions are reclaimed without a janitor.
+- **`load()` throws on a corrupt blob** instead of returning `nullopt` — a corrupt checkpoint
+  must not masquerade as an absent session and restart a payment conversation from scratch.
+- **One round trip** on the hot path for both `load` and `saveIf`.
+- Blobs are written with `dump()`, not `dump(2)`: 1 539 vs 1 976 bytes on a real checkpoint,
+  paid on every write and every reply.
+
+`list()` is capped by `RedisStateStoreOptions::max_list` (default 1 000) because
+`IStateStore::list()` has no pagination and returning a million checkpoints would exhaust the
+caller long before Redis complained.
+
+### 4.4 Two operational caveats
+
+**Redis Cluster.** With `atomic_index=true` the save script touches the session hash *and* the
+index ZSETs in one `EVAL`, which Cluster rejects with `CROSSSLOT` because they hash to
+different slots. Set `state_redis_atomic_index: false`: the `EVAL` then touches only the
+session hash (always cluster-safe) and the index is updated in a second pipelined batch. The
+index is advisory — it serves `list()`/`count()`, never correctness — so the brief
+inconsistency window is fine.
+
+**Index drift.** A session that TTLs out does not tell the index, so `count()` drifts upward.
+`list()` prunes lazily as it walks; call `pruneExpired()` from a maintenance tick to keep
+`count()` honest. Do **not** build this on keyspace notifications — they are not delivered
+when no subscriber is connected.
+
+### 4.5 Bring your own client
+
+`RedisStateStore` depends only on `sapo::redis::IRedisClient` (`src/redis/IRedisClient.hpp`) —
+one `command(args)` and one `pipeline(commands)` returning a `RedisValue`. To use hiredis or
+redis-plus-plus instead of the built-in socket client, implement those two methods and inject:
 
 ```cpp
-#include "runtime/StateStore.hpp"
-#include <sw/redis++/redis++.h>
-
-class RedisStateStore final : public sapo::runtime::IStateStore {
-public:
-    RedisStateStore(sw::redis::Redis& redis, std::string prefix, std::chrono::seconds ttl)
-        : m_redis(redis), m_prefix(std::move(prefix)), m_ttl(ttl) {}
-
-    void save(const sapo::runtime::SessionCheckpoint& cp) override {
-        m_redis.set(m_prefix + cp.session_id, cp.toJson().dump(), m_ttl);
-    }
-    std::optional<sapo::runtime::SessionCheckpoint> load(const std::string& id) const override {
-        auto value = m_redis.get(m_prefix + id);
-        if (!value) return std::nullopt;
-        return sapo::runtime::SessionCheckpoint::fromJson(nlohmann::json::parse(*value));
-    }
-    bool remove(const std::string& id) override { return m_redis.del(m_prefix + id) > 0; }
-    std::vector<sapo::runtime::SessionCheckpoint> list() const override {
-        std::vector<sapo::runtime::SessionCheckpoint> out;   // SCAN m_prefix* + load each
-        for (auto key : m_redis.scan(m_prefix + "*", 0, "COUNT", 500).second) { /* ... */ }
-        return out;
-    }
-    size_t count(std::optional<sapo::runtime::SessionStatus>) const override { return 0; }
-    std::string kind() const override { return "redis:" + m_prefix; }
-
-private:
-    sw::redis::Redis& m_redis;
-    std::string m_prefix;
-    std::chrono::seconds m_ttl;
-};
-// services.state_store = std::make_shared<RedisStateStore>(redis, "sapo:session:", 15min);
+auto client = std::make_shared<MyHiredisClient>(/* pool, TLS, cluster … */);
+sapo::redis::RedisStateStoreOptions options;
+options.ttl_seconds = 900;
+services.state_store = std::make_shared<sapo::redis::RedisStateStore>(client, options);
 ```
+
+That is also how you get TLS and Cluster MOVED/ASK redirection, which the built-in client
+deliberately does not implement.
+
+### 4.6 Making a resume idempotent
+
+CAS protects the *write*; it does not stop the side effects that already ran. Take the
+per-session claim before resuming, and return the previously rendered prompt when you lose it:
+
+```cpp
+auto redis_store = std::dynamic_pointer_cast<sapo::redis::RedisStateStore>(vm.services().state_store);
+const std::string token = outcome.execution_id;
+if (redis_store && !redis_store->tryClaim(session_id, token, /*ttl_ms=*/5000)) {
+    return previousPrompt(session_id);          // a duplicate: do not re-run the flow
+}
+const auto result = vm.resumeSession(session_id, {{"input", user_data}});
+if (redis_store) redis_store->releaseClaim(session_id, token);
+```
+
+`SET … NX PX` bounds the damage when a holder crashes without releasing. `releaseClaim` is a
+compare-and-delete, so a late release cannot drop another caller's claim.
+
+> **Still open:** `Interpreter::resumeSession` does not yet call `saveIf`, and `EventBus` is
+> in-process only (a session awaiting `payment.confirmed` on node A is not woken by that event
+> arriving at node B). Both are tracked in
+> [`STATE-STORE-REDIS-VS-TARANTOOL.md`](STATE-STORE-REDIS-VS-TARANTOOL.md) §7.
 
 ---
 
@@ -418,8 +513,13 @@ record live exchanges once and replay them offline — blueprint tests never tou
 - [ ] Release build, `-DSAPO_ENABLE_CPR=ON` (or custom transport injected).
 - [ ] `sapoc validate <blueprint-dir> --strict --config sapo-config.json` runs in CI before deploy.
 - [ ] `vm.start()` audit problems are treated as deploy failures.
-- [ ] Durable state store chosen (`FileStateStore` single-node; Redis/PG shared); state dir on
-  durable storage with sane permissions.
+- [ ] Durable state store chosen (`FileStateStore` single-node; `RedisStateStore` shared);
+  state dir on durable storage with sane permissions.
+- [ ] Redis only: `-DSAPO_ENABLE_REDIS=ON`; `state_redis_pool` >= `engine.workers`;
+  `state_redis_atomic_index: false` on Redis Cluster; `pruneExpired()` scheduled; TLS
+  terminated by a proxy or a BYO `IRedisClient` (the built-in client has none); session TTL
+  chosen; and the checkpoint's plaintext secrets addressed (§8 of
+  [`STATE-STORE-REDIS-VS-TARANTOOL.md`](STATE-STORE-REDIS-VS-TARANTOOL.md)).
 - [ ] Secrets live in env/vault and enter via `env:*`/`secret:*` in `sapo-config.json`;
   `applySecretRedaction()` keeps them out of logs (done by `start()`).
 - [ ] Engine calls happen off Drogon IO threads (`drogon::async_run` or a worker pool).

@@ -11,6 +11,12 @@ command capacity at national peak. The single-threaded command loop is an *asset
 because it hands you per-key atomicity for free, and you have a
 read-modify-write race in `Interpreter::resumeSession` that needs exactly that.
 
+> **Update:** this is no longer hypothetical. `sapo::redis::RedisStateStore` ships in
+> `src/redis/` behind `-DSAPO_ENABLE_REDIS=ON`, with the CAS, status index, TTL, claim mutex
+> and bounded `list()` described in §7 — see [`INTEGRATING.md`](INTEGRATING.md) §4. What is
+> still open is §7.7 (cross-node wakeup), §7.8 (topology) and wiring `saveIf` into the
+> interpreter (§10).
+
 Tarantool is the better choice only if you want *queryable* session state, real ACID
 multi-key transactions, or to collapse Redis + RabbitMQ into one system. It is not a
 throughput play — for this access pattern it buys almost no throughput.
@@ -274,8 +280,12 @@ concurrently. Since your operations are single-key and O(1), Redis's one core al
 
 ## 7. Work required regardless of which store you pick
 
-This is the part that actually determines whether the deployment is correct. None of it is
-optional, and it is mostly store-agnostic.
+This is the part that actually determines whether the deployment is correct.
+
+> **Status:** §7.1–§7.6 shipped with `redis::RedisStateStore` (`src/redis/`). §7.7 and §7.8
+> are still open, and §7.1's new `saveIf` is **not yet called by the interpreter** — the
+> primitive exists and is tested, but `Interpreter::resumeSession` still uses the plain
+> `save()`. Wiring that up is the highest-value remaining change.
 
 **7.1 Add optimistic concurrency to the SPI.** `SessionCheckpoint` gains a `version` (or
 `etag`) field; `IStateStore` gains a CAS save:
@@ -364,7 +374,7 @@ exposure. But it changes the deployment requirements for whichever you pick:
 | Ops familiarity (telco/Ghana stack) | ✅ ubiquitous | ❌ thin talent pool, bus-factor risk | ✅ |
 | Could replace RabbitMQ too | ⚠️ Streams, partially | ✅ queue module + transactions | ⚠️ `SKIP LOCKED`, well-trodden |
 | Licence | ⚠️ AGPLv3 tri (Valkey: BSD-3) | ✅ BSD-2 | ✅ PostgreSQL |
-| Fit with existing `IStateStore` seam | ✅ ~40 lines, already sketched in `INTEGRATING.md` §4 | ⚠️ tuple mapping + Lua procs | ⚠️ SQL + pool |
+| Fit with existing `IStateStore` seam | ✅ **shipped** (`src/redis/`, `-DSAPO_ENABLE_REDIS=ON`) | ⚠️ tuple mapping + Lua procs | ⚠️ SQL + pool |
 
 ### Recommendation
 
@@ -401,15 +411,22 @@ betting the engine's only C++ dependency on a 10-star connector.
 
 ## 10. Suggested next steps
 
-- [ ] Decide Redis vs Valkey (licence posture; Valkey is wire-compatible, so this is
-      reversible and can be deferred).
-- [ ] Extend `IStateStore` with `version` + `saveIf()` (§7.1) — do this **before** writing
-      any adapter, so the seam is right the first time. Add it to `InMemoryStateStore` and
-      `FileStateStore` first, with tests; that also reproduces the §5 race in CI.
-- [ ] Add a `tests/test_concurrent_resume.cpp` that fires two resumes at one suspended
-      payment session and asserts the `command` node ran exactly once.
-- [ ] Implement `RedisStateStore` properly — not the §4 sketch: pipelined claim, Lua CAS
-      save, status index, compact JSON, pooled connections, blob-size metric.
+- [x] Extend `IStateStore` with `version` + `saveIf()` (§7.1) — shipped, with
+      `SaveResult::{Ok, VersionConflict, Gone}` and `supportsCompareAndSwap()`. Implemented in
+      all three stores so a caller's expectations do not depend on which adapter is wired up.
+- [x] Add a test that fires concurrent saves at one suspended session and asserts exactly one
+      winner — `tests/test_redis_state_store.cpp`, "racing writers on one session produce
+      exactly one winner" (8 threads, 1 win, 7 conflicts).
+- [x] Implement `RedisStateStore` properly — not the §4 sketch: Lua CAS save, status index,
+      compact JSON, pooled connections, bounded `list()`, loud errors.
+- [ ] **Wire `Interpreter::resumeSession` to `saveIf` + `tryClaim`** (§7.2). The primitive is
+      in place and tested; the interpreter still calls plain `save()`, so the §5 race is not
+      yet closed in the engine itself.
 - [ ] Design the cross-node wakeup (§7.7) and the shared durable timer queue (§6.6).
 - [ ] Resolve §8 before any production data lands in a store.
-- [ ] Load-test at 3× your estimated peak with realistic blob sizes; watch p99, not mean.
+- [ ] Decide Redis vs Valkey (licence posture; wire-compatible, so reversible and deferrable).
+- [ ] Load-test at 3× your estimated peak with realistic blob sizes; watch p99, not mean. Run
+      it with `state_redis_atomic_index` both ways if Redis Cluster is on the roadmap.
+- [ ] Run the opt-in live-server suite against a real Redis before deploy:
+      `SAPO_REDIS_URL=redis://127.0.0.1:6379/15 ctest -R test_redis_state_store`. That is the
+      only coverage that proves Redis itself accepts the Lua; `MockRedisClient` mirrors it.

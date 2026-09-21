@@ -15,6 +15,12 @@ option(SAPO_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 # network — only system libcurl dev headers (docs/BUILDING.md):
 #   Ubuntu/Debian: sudo apt install libcurl4-openssl-dev
 option(SAPO_ENABLE_CPR "Build the libcurl-backed HTTP transport (vendored cpr + system libcurl)" OFF)
+# Redis: the client is written against POSIX sockets, so it needs no external
+# library and no network at build time — only a platform with Berkeley sockets
+# (Linux, macOS, *BSD). Off by default to keep the core dependency-free and
+# portable; RedisStateStore itself always builds against the IRedisClient seam,
+# so a host can inject a hiredis/redis-plus-plus adapter without this option.
+option(SAPO_ENABLE_REDIS "Build the POSIX-socket RESP2 client backing RedisStateStore" OFF)
 set(SAPO_SANITIZERS "" CACHE STRING "Comma-separated sanitizers, e.g. address,undefined")
 
 set(CMAKE_CXX_STANDARD 23)
@@ -47,6 +53,9 @@ list(FILTER SAPO_CORE_SOURCES EXCLUDE REGEX ".*/third_party/.*")
 if(NOT SAPO_ENABLE_CPR)
     list(FILTER SAPO_CORE_SOURCES EXCLUDE REGEX ".*/http/CprTransport\\.cpp$")
 endif()
+if(NOT SAPO_ENABLE_REDIS)
+    list(FILTER SAPO_CORE_SOURCES EXCLUDE REGEX ".*/redis/SocketRedisClient\\.cpp$")
+endif()
 
 add_library(sapo_core STATIC ${SAPO_CORE_SOURCES})
 add_library(Sapo::core ALIAS sapo_core)
@@ -74,6 +83,16 @@ if(SAPO_ENABLE_CPR)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/third_party/cpr EXCLUDE_FROM_ALL)
     target_link_libraries(sapo_core PUBLIC cpr::cpr)
     target_compile_definitions(sapo_core PUBLIC SAPO_ENABLE_CPR=1)
+endif()
+
+if(SAPO_ENABLE_REDIS)
+    if(WIN32)
+        message(FATAL_ERROR
+                "SAPO_ENABLE_REDIS=ON needs Berkeley sockets (Linux, macOS, *BSD). On Windows, "
+                "inject an IRedisClient wrapping hiredis instead — the seam is the same one.")
+    endif()
+    # PUBLIC so `sapoc` sees the guard around --state-redis, exactly as with CPR.
+    target_compile_definitions(sapo_core PUBLIC SAPO_ENABLE_REDIS=1)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")

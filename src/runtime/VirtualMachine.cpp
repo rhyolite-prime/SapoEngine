@@ -4,8 +4,12 @@
 #include "runtime/VirtualMachine.hpp"
 
 #include "config/ProviderConfig.hpp"
+#include "redis/RedisStateStore.hpp"
 #include "runtime/SapoError.hpp"
 #include "util/Crypto.hpp"
+#if defined(SAPO_ENABLE_REDIS)
+#include "redis/SocketRedisClient.hpp"
+#endif
 
 #include <algorithm>
 #include <filesystem>
@@ -200,12 +204,77 @@ namespace sapo::runtime {
                 }
                 if (engine.contains("state_dir") && engine["state_dir"].is_string()) {
                     const auto directory = engine["state_dir"].get<std::string>();
-                    const auto file_store = std::dynamic_pointer_cast<FileStateStore>(m_services.state_store);
-                    const bool wants_disk = !directory.empty() &&
-                                            (m_services.state_store == nullptr || file_store != nullptr ||
-                                             file_store == nullptr);
-                    if (wants_disk && m_services.state_store != nullptr) {
+                    // Only ever replace an in-memory or file store. A host that
+                    // injected a *shared* store (Redis, PostgreSQL) means it:
+                    // quietly swapping that for a node-local directory would
+                    // split one fleet's sessions across every node's disk and
+                    // break cross-node resume.
+                    const auto current = m_services.state_store;
+                    const bool replaceable =
+                        current != nullptr &&
+                        (std::dynamic_pointer_cast<InMemoryStateStore>(current) != nullptr ||
+                         std::dynamic_pointer_cast<FileStateStore>(current) != nullptr);
+                    if (!directory.empty() && replaceable) {
                         m_services.state_store = std::make_shared<FileStateStore>(directory);
+                    }
+                }
+
+                // `state_redis` wins over `state_dir`: the whole point of a
+                // shared store is that any node can resume any session
+                // (docs/INTEGRATING.md §4). Applied second so it overrides.
+                if (engine.contains("state_redis")) {
+                    // Resolve {"$env": …} / {"$secret": …} here, because the
+                    // `engine` block is not expanded at load time. A URL with an
+                    // inline password would otherwise sit in the config file and
+                    // in every log line that echoes it.
+                    std::vector<std::string> indirection_problems;
+                    const json resolved = config::expandIndirections(engine["state_redis"],
+                                                                    *m_services.provider_config,
+                                                                    indirection_problems, "engine.state_redis");
+                    for (const auto &problem : indirection_problems) m_problems.push_back("config: " + problem);
+                    if (!resolved.is_string() || resolved.get<std::string>().empty()) {
+                        m_problems.push_back("config: engine.state_redis must be a non-empty redis:// URL string");
+                    } else {
+                        // Validate the URL outside the build guard: RedisOptions
+                        // always compiles, so a typo or a rediss:// endpoint is
+                        // reported identically whether or not SAPO_ENABLE_REDIS
+                        // is on. Only constructing the socket client is gated.
+                        std::string problem;
+                        const auto parsed = redis::RedisOptions::fromUrl(resolved.get<std::string>(), &problem);
+                        if (!parsed.has_value()) {
+                            m_problems.push_back("config: engine.state_redis: " + problem);
+                        } else {
+#if defined(SAPO_ENABLE_REDIS)
+                            redis::RedisOptions client_options = *parsed;
+                            redis::RedisStateStoreOptions store_options;
+                            if (engine.contains("state_redis_ttl") && engine["state_redis_ttl"].is_number_integer()) {
+                                store_options.ttl_seconds = engine["state_redis_ttl"].get<int>();
+                            }
+                            if (engine.contains("state_redis_prefix") && engine["state_redis_prefix"].is_string()) {
+                                store_options.key_prefix = engine["state_redis_prefix"].get<std::string>();
+                            }
+                            if (engine.contains("state_redis_atomic_index") &&
+                                engine["state_redis_atomic_index"].is_boolean()) {
+                                store_options.atomic_index = engine["state_redis_atomic_index"].get<bool>();
+                            }
+                            if (engine.contains("state_redis_pool") && engine["state_redis_pool"].is_number_integer()) {
+                                client_options.pool_size =
+                                    static_cast<size_t>(std::max<int>(1, engine["state_redis_pool"].get<int>()));
+                            }
+                            auto client = std::make_shared<redis::SocketRedisClient>(client_options);
+                            if (!client->healthy()) {
+                                // describe() never includes the password.
+                                m_problems.push_back("config: engine.state_redis cannot reach " +
+                                                     client_options.describe());
+                            }
+                            m_services.state_store =
+                                std::make_shared<redis::RedisStateStore>(client, store_options);
+#else
+                            m_problems.push_back("config: engine.state_redis needs a build with "
+                                                 "-DSAPO_ENABLE_REDIS=ON (or inject "
+                                                 "sapo::redis::RedisStateStore with your own IRedisClient)");
+#endif
+                        }
                     }
                 }
             }
