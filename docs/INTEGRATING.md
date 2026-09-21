@@ -125,7 +125,7 @@ vm.stop();                                        // at shutdown
 Key lifecycle facts:
 
 - Register blueprints at startup (`setWorkflowDirectory`, `addBlueprintFile/Directory`,
-  or `workflows:` in `sapo-config.json`). **Do not mutate the workflow registry while
+  or `workflows:` in `../sapo-config.json`). **Do not mutate the workflow registry while
   serving traffic** — the registry is not lock-protected for concurrent reads + writes.
 - A suspended session is *data in the state store*, not a thread. `resumeSession()`
   works across process restarts as long as the blueprint is registered again and the
@@ -337,7 +337,7 @@ against POSIX sockets, so it pulls in no external library and still builds offli
 
 ### 4.2 Configuring it
 
-`sapo-config.json`:
+`../sapo-config.json`:
 
 ```json
 {
@@ -520,7 +520,7 @@ record live exchanges once and replay them offline — blueprint tests never tou
   terminated by a proxy or a BYO `IRedisClient` (the built-in client has none); session TTL
   chosen; and the checkpoint's plaintext secrets addressed (§8 of
   [`STATE-STORE-REDIS-VS-TARANTOOL.md`](STATE-STORE-REDIS-VS-TARANTOOL.md)).
-- [ ] Secrets live in env/vault and enter via `env:*`/`secret:*` in `sapo-config.json`;
+- [ ] Secrets live in env/vault and enter via `env:*`/`secret:*` in `../sapo-config.json`;
   `applySecretRedaction()` keeps them out of logs (done by `start()`).
 - [ ] Engine calls happen off Drogon IO threads (`drogon::async_run` or a worker pool).
 - [ ] Timers/cron/event triggers needed? `startBackgroundTick()` is running.
