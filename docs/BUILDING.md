@@ -15,6 +15,26 @@ from the network at configure or build time.
 The HTTP transport is opt-in: without `SAPO_ENABLE_CPR` the engine ships a `NullTransport` and
 `http.*` blueprint commands fail loudly instead of silently doing nothing.
 
+## Build options
+
+| Option | Default | Effect |
+|---|---|---|
+| `SAPO_ENABLE_CPR` | `OFF` | Compiles the vendored cpr/libcurl HTTP transport. Needs libcurl dev headers. Off ⇒ `NullTransport`, and `http.*` nodes fail loudly. |
+| `SAPO_ENABLE_REDIS` | `OFF` | Compiles `src/redis/SocketRedisClient.cpp`, the POSIX-socket RESP2 client behind `RedisStateStore`. **No external library** — the client is written against Berkeley sockets, so the build stays offline and dependency-free. Needs Linux/macOS/*BSD. Off ⇒ `RedisStateStore` still compiles, and you inject your own `IRedisClient` (hiredis, redis-plus-plus). |
+| `SAPO_BUILD_TESTS` | `ON` | Catch2 suite, one ctest case per `tests/test_*.cpp`. |
+| `SAPO_WARNINGS_AS_ERRORS` | `OFF` | `-Werror`. Worth turning on in CI. |
+| `SAPO_SANITIZERS` | `""` | Comma-separated, e.g. `-DSAPO_SANITIZERS=address,undefined`. |
+
+A production engine that talks to a payment gateway and shares sessions across a fleet:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+      -DSAPO_ENABLE_CPR=ON -DSAPO_ENABLE_REDIS=ON -DSAPO_WARNINGS_AS_ERRORS=ON
+```
+
+Session-store configuration (`engine.state_redis` and friends) is documented in
+[INTEGRATING.md §4](INTEGRATING.md#4-session-state-in-production).
+
 ## Ubuntu quick start
 
 ```bash
@@ -59,10 +79,6 @@ To deploy the DSL inside an existing C++ API instead of running `sapoc` — link
 `sapo::runtime::VirtualMachine` from your handlers. Full guide, endpoint design,
 state-store and transport options, and a runnable reference service:
 see [INTEGRATING.md](INTEGRATING.md) and [`examples/drogon`](../examples/drogon).
-
-## Notes
-
-- **cpr version is pinned by the vendored tree** (`src/third_party/cpr`, 1.10.5), so builds are
 
 ## Notes
 

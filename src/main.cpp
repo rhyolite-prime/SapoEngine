@@ -16,8 +16,12 @@
 #include "config/ProviderConfig.hpp"
 #include "parser/WorkflowParser.hpp"
 #include "observability/Logger.hpp"
+#include "redis/RedisStateStore.hpp"
 #include "runtime/StateStore.hpp"
 #include "runtime/VirtualMachine.hpp"
+#if defined(SAPO_ENABLE_REDIS)
+#include "redis/SocketRedisClient.hpp"
+#endif
 #include "util/TimeUtils.hpp"
 
 #include <chrono>
@@ -88,6 +92,9 @@ Options:
   --input <file|->         merge a JSON object into the session input ('-' reads stdin)
   --config <file>          sapo-config.json (providers, secrets, engine limits)
   --state-dir <dir>        durable session store directory (default: in-memory only)
+  --state-redis <url>      shared session store: redis://[user:pass@]host[:port][/db]
+                           (needs -DSAPO_ENABLE_REDIS=ON; overrides --state-dir)
+  --state-ttl <seconds>    session TTL for --state-redis (default 900; 0 = never expire)
   --session <id>           fixed session id for `run`
   --start-node <id>        enter the blueprint at a specific node
   --correlation-id <id>    tag the execution for logs/traces
@@ -181,6 +188,7 @@ Options parseArguments(int argc, char **argv) {
         }
         if (body == "var" || body == "input" || body == "config" || body == "state-dir" || body == "session" ||
             body == "start-node" || body == "correlation-id" || body == "max-visits" || body == "blueprint" ||
+            body == "state-redis" || body == "state-ttl" ||
             body == "max-time" || body == "tick-ms" || body == "log-level" || body == "log-file" || body == "answer" ||
             body == "reason") {
             if (index + 1 >= argc) fail("--" + body + " expects a value");
@@ -247,7 +255,31 @@ TaskServices buildServices(const Options &options) {
         services.limits.max_node_visits = static_cast<size_t>(std::strtoull(max_visits.c_str(), nullptr, 10));
     }
 
-    if (const std::string state_dir = options.value("state-dir"); !state_dir.empty()) {
+    // A shared store wins over --state-dir: the whole point of Redis here is
+    // that any node in the fleet can resume any session (docs/INTEGRATING.md §4).
+    if (const std::string url = options.value("state-redis"); !url.empty()) {
+#if defined(SAPO_ENABLE_REDIS)
+        std::string problem;
+        const auto parsed = sapo::redis::RedisOptions::fromUrl(url, &problem);
+        if (!parsed.has_value()) fail("bad --state-redis: " + problem);
+        sapo::redis::RedisStateStoreOptions store_options;
+        if (const std::string ttl = options.value("state-ttl"); !ttl.empty()) {
+            const long long seconds = std::strtoll(ttl.c_str(), nullptr, 10);
+            if (seconds < 0) fail("--state-ttl must be >= 0");
+            store_options.ttl_seconds = static_cast<int>(seconds);
+        }
+        // The CLI is single-threaded, so two connections are plenty; an embedding
+        // host must size this to its worker count instead.
+        sapo::redis::RedisOptions client_options = *parsed;
+        client_options.pool_size = 2;
+        auto client = std::make_shared<sapo::redis::SocketRedisClient>(client_options);
+        if (!client->healthy()) fail("cannot reach redis at " + parsed->describe());
+        services.state_store = std::make_shared<sapo::redis::RedisStateStore>(client, store_options);
+#else
+        fail("--state-redis needs a build with -DSAPO_ENABLE_REDIS=ON "
+             "(or inject sapo::redis::RedisStateStore with your own IRedisClient)");
+#endif
+    } else if (const std::string state_dir = options.value("state-dir"); !state_dir.empty()) {
         std::error_code error;
         std::filesystem::create_directories(state_dir, error);
         if (error) fail("cannot create state directory '" + state_dir + "': " + error.message());

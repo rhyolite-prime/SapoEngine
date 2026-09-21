@@ -58,21 +58,71 @@ namespace sapo::runtime {
         int64_t created_ms{0};
         int64_t updated_ms{0};
         size_t node_visits{0};                // execution budget / loop guard
+        /// Optimistic-concurrency token **assigned by the store**, not by the
+        /// caller: 0 while a checkpoint has never been persisted, and every
+        /// successful `save()` / `saveIf()` stores `previous + 1`. Read it back
+        /// with `load()` before calling `saveIf()`; setting it yourself has no
+        /// effect on what gets stored.
+        int64_t version{0};
 
         [[nodiscard]] nlohmann::json toJson() const;
         [[nodiscard]] static SessionCheckpoint fromJson(const nlohmann::json &json);
+    };
+
+    /// Why a `saveIf` did not write.
+    enum class SaveResult {
+        Ok,               ///< written; `SaveOutcome::version` is the new version
+        VersionConflict,  ///< another writer won the race; nothing was written
+        Gone              ///< the session no longer exists (expired or removed)
+    };
+
+    [[nodiscard]] const char *toString(SaveResult result);
+
+    struct SaveOutcome {
+        SaveResult result{SaveResult::Ok};
+        /// The version now stored: the new one after `Ok`, or the *winning*
+        /// writer's on conflict (so a caller can reload and retry).
+        int64_t version{0};
+
+        [[nodiscard]] bool ok() const { return result == SaveResult::Ok; }
     };
 
     class IStateStore {
     public:
         virtual ~IStateStore() = default;
 
+        /// Unconditional write. The stored version still advances, so a
+        /// following `saveIf()` has something to compare against.
         virtual void save(const SessionCheckpoint &checkpoint) = 0;
         [[nodiscard]] virtual std::optional<SessionCheckpoint> load(const std::string &session_id) const = 0;
         virtual bool remove(const std::string &session_id) = 0;
         [[nodiscard]] virtual std::vector<SessionCheckpoint> list() const = 0;
         [[nodiscard]] virtual size_t count(std::optional<SessionStatus> status = std::nullopt) const = 0;
         [[nodiscard]] virtual std::string kind() const = 0;
+
+        /**
+         * @brief Atomic compare-and-swap: write `checkpoint` only if the stored
+         *        version equals `expected_version` (0 ⇒ "create only if absent").
+         *
+         * This is the primitive that makes `resumeSession` safe under concurrent
+         * requests for the same session — a duplicated USSD request, a gateway
+         * retry, or an API node and a queue worker racing on one session all
+         * resolve to one winner instead of a silent last-writer-wins that can
+         * re-run a side-effecting `command` node.
+         *
+         * The base implementation degrades to an unconditional `save()` so that
+         * stores without CAS still compile; it reports `Ok` but performs **no**
+         * check. Adapters that matter (`RedisStateStore`, `InMemoryStateStore`,
+         * `FileStateStore`) override it. Call `supportsCompareAndSwap()` before
+         * relying on the guarantee.
+         */
+        virtual SaveOutcome saveIf(const SessionCheckpoint &checkpoint, int64_t expected_version) {
+            save(checkpoint);
+            return SaveOutcome{SaveResult::Ok, checkpoint.version};
+        }
+
+        /// False for stores whose `saveIf` is the degrading base implementation.
+        [[nodiscard]] virtual bool supportsCompareAndSwap() const { return false; }
     };
 
     using StateStorePtr = std::shared_ptr<IStateStore>;
@@ -81,6 +131,8 @@ namespace sapo::runtime {
     class InMemoryStateStore final : public IStateStore {
     public:
         void save(const SessionCheckpoint &checkpoint) override;
+        SaveOutcome saveIf(const SessionCheckpoint &checkpoint, int64_t expected_version) override;
+        [[nodiscard]] bool supportsCompareAndSwap() const override { return true; }
         [[nodiscard]] std::optional<SessionCheckpoint> load(const std::string &session_id) const override;
         bool remove(const std::string &session_id) override;
         [[nodiscard]] std::vector<SessionCheckpoint> list() const override;
@@ -100,6 +152,8 @@ namespace sapo::runtime {
         explicit FileStateStore(std::string directory);
 
         void save(const SessionCheckpoint &checkpoint) override;
+        SaveOutcome saveIf(const SessionCheckpoint &checkpoint, int64_t expected_version) override;
+        [[nodiscard]] bool supportsCompareAndSwap() const override { return true; }
         [[nodiscard]] std::optional<SessionCheckpoint> load(const std::string &session_id) const override;
         bool remove(const std::string &session_id) override;
         [[nodiscard]] std::vector<SessionCheckpoint> list() const override;

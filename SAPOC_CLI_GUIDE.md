@@ -186,7 +186,7 @@ Inspects the capabilities, loaded blueprints, providers, data sources, and limit
 ./build/sapoc describe examples/payment_confirmed_trigger.json
 
 # Inspect with full configuration
-./build/sapoc describe --config sapo-config.example.json --json
+./build/sapoc describe --config sapo-config.json --json
 ```
 
 ---
@@ -201,7 +201,7 @@ sapoc emit <event.name> [options]
 **Example:**
 ```bash
 ./build/sapoc emit payments.confirmed \
-  --config sapo-config.example.json \
+  --config sapo-config.json \
   --var reference=REF-100 \
   --var amount=50 \
   --var channel=sms

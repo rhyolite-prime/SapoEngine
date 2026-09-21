@@ -5,7 +5,10 @@
     "log_level": "warn",
     "max_node_visits": 100000,
     "max_depth": 8,
-    "default_timeout_ms": 900000
+    "default_timeout_ms": 900000,
+    "state_redis": { "$env": "SAPO_REDIS_URL" },
+    "state_redis_ttl": 900,
+    "state_redis_pool": 16
   },
   "secrets": {
     "momo_api_token": "env:SAPO_MOMO_TOKEN",
@@ -39,38 +42,7 @@
       "issuer": "Sapo"
     }
   },
-  "data_sources": [
-    {
-      "name": "agents",
-      "provider": "context",
-      "scope": "internal",
-      "config": {
-        "source": "$agent_directory"
-      }
-    },
-    {
-      "name": "tariffs",
-      "provider": "mock",
-      "scope": "external",
-      "config": {
-        "rows": [
-          {
-            "code": "STD",
-            "fee": 0.05,
-            "currency": "GHS"
-          }
-        ]
-      }
-    },
-    {
-      "name": "ledger",
-      "provider": "postgresql",
-      "deferred": true,
-      "config": {
-        "dsn": "env:SAPO_LEDGER_DSN"
-      }
-    }
-  ],
+  "data_sources": [],
   "workflows": {
     "directory": "examples"
   },
