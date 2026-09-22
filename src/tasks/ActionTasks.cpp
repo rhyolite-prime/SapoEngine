@@ -49,6 +49,28 @@ namespace sapo::tasks {
             return {};
         }
 
+        std::string formatOption(const std::string &format, const json &item) {
+            if (format.empty()) return optionText(item);
+            std::string out;
+            for (size_t i = 0; i < format.size();) {
+                if (format[i] == '$' && i + 1 < format.size()) {
+                    size_t end = i + 1;
+                    while (end < format.size() &&
+                           (std::isalnum(static_cast<unsigned char>(format[end])) || format[end] == '_' || format[end] == '.')) {
+                        ++end;
+                    }
+                    if (end > i + 1) {
+                        const std::string field = format.substr(i + 1, end - i - 1);
+                        out += optionText(field == "value" ? item : optionProperty(item, field));
+                        i = end;
+                        continue;
+                    }
+                }
+                out += format[i++];
+            }
+            return out;
+        }
+
         struct DynamicMenu {
             json prompt;
             bool selected{false};
@@ -100,29 +122,36 @@ namespace sapo::tasks {
                 }
             }
 
+            const std::string labelFormat = options.value("labelFormat", options.value("label_format", ""));
+            const std::string valueFormat = options.value("valueFormat", options.value("value_format", ""));
             const json labelConfig = options.contains("label") ? options.at("label") :
                                       (options.contains("labels") ? options.at("labels") : json(""));
             const auto labels = optionFields(labelConfig);
-            const std::string separator = options.value("separator", " - ");
             const int offset = page * pageSize;
             const int end = std::min(offset + pageSize, static_cast<int>(rows.size()));
             std::ostringstream message;
-            message << runtime::ExpressionEvaluator::resolve(config.message, execution.scope()).get<std::string>();
+            const json resolvedMessage = runtime::ExpressionEvaluator::resolve(config.message, execution.scope());
+            message << (resolvedMessage.is_string() ? resolvedMessage.get<std::string>() : resolvedMessage.dump());
             message << "\n";
             json rendered = json::array();
             for (int i = offset; i < end; ++i) {
                 const json &item = rows.at(static_cast<size_t>(i));
-                std::vector<std::string> parts;
-                if (!labels.empty() && item.is_object()) {
-                    for (const auto &field : labels) parts.push_back(optionText(optionProperty(item, field)));
+                std::string label;
+                if (!labelFormat.empty()) label = formatOption(labelFormat, item);
+                else {
+                    std::vector<std::string> parts;
+                    if (!labels.empty() && item.is_object()) {
+                        for (const auto &field : labels) parts.push_back(optionText(optionProperty(item, field)));
+                    }
+                    label = parts.empty() ? optionText(item) : parts.front();
+                    for (size_t part = 1; part < parts.size(); ++part) label += " " + parts[part];
                 }
-                const std::string label = parts.empty() ? optionText(item) : [&] {
-                    std::string joined;
-                    for (const auto &part : parts) { if (!joined.empty()) joined += separator; joined += part; }
-                    return joined;
-                }();
-                const std::string valueField = options.value("value", "");
-                const json value = valueField.empty() ? (item.is_object() ? json(i - offset + 1) : item) : optionProperty(item, valueField);
+                json value;
+                if (!valueFormat.empty()) value = formatOption(valueFormat, item);
+                else {
+                    const std::string valueField = options.value("value", "");
+                    value = valueField.empty() ? (item.is_object() ? json(i - offset + 1) : item) : optionProperty(item, valueField);
+                }
                 message << (i - offset + 1) << ". " << label << "\n";
                 rendered.push_back(json{{"label", label}, {"value", value}});
             }
