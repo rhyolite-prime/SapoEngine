@@ -526,7 +526,7 @@
         "interaction_type": "menu",
         "timeout": "2m",
         "options": {
-          "source": "$banks",
+          "source": "$api_response.data",
           "page_size": 5,
           "page_variable": "bank_page",
           "next_value": "n",
