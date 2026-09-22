@@ -537,7 +537,7 @@
           "valueFormat": "$BankCode"
         }
       },
-      "next": "wd_bank_account"
+      "next": "wd_bank_recipient_phone"
     },
     {
       "id": "banks_api_rejection",
@@ -563,6 +563,29 @@
         "error_detail": "${coalesce(error.message, \"Network unreachable\")}"
       },
       "label": "Get Banks API transport error"
+    },
+    {
+      "id": "wd_bank_recipient_phone",
+      "type": "action",
+      "capability": "",
+      "label": "Enter Recipient Phone Number",
+      "await_input": true,
+      "input_variable": "recipient_phone",
+      "prompt_config": {
+        "message": "Enter Recipient Phone Number:\n0. Back",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^(0|0[0-9]{9}|233[0-9]{9}|\\+233[0-9]{9})$')",
+        "timeout": "2m"
+      },
+      "next": "check_bank_recipient_phone_back"
+    },
+    {
+      "id": "check_bank_recipient_phone_back",
+      "type": "if",
+      "label": "Check Recipient Phone Number Back",
+      "condition": "recipient_phone == '0'",
+      "then": "wd_bank_select",
+      "else": "wd_bank_account"
     },
     {
       "id": "wd_bank_account",
@@ -618,6 +641,7 @@
         "action": "withdrawal_bank",
         "bank": "$bank_name",
         "account": "$bank_account",
+        "recipient_phone": "$recipient_phone",
         "amount": "$withdraw_amount"
       }
     },
