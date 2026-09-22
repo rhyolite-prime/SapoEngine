@@ -481,7 +481,7 @@
     {
       "id": "call_get_banks_api",
       "type": "command",
-      "command": "http.post",
+      "command": "http.get",
       "label": "Get Destination Banks via API",
       "http_request": {
         "url": "https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/smart-suite/get-banks",
