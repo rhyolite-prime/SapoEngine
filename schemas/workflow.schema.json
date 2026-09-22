@@ -66,6 +66,11 @@
         "interaction_type": { "enum": ["display", "input", "menu", "pin"], "default": "input" },
         "input_validation": { "$ref": "#/$defs/predicate" },
         "output": { "type": "string", "description": "Context key the reply is written to" },
+        "options": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Dynamic menu options. `source` resolves to an array; `label`/`labels` is a string or list of object properties concatenated with `separator`; `value` selects the stored property. Supports raw scalar arrays and pagination via `page_size`, `page_variable`, `next_value`, `previous_value`, and `back_value`."
+        },
         "timeout": { "type": ["integer", "string"], "description": "Milliseconds, or a duration string such as 90s / 2m" }
       }
     },

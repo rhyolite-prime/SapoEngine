@@ -687,6 +687,10 @@ namespace sapo::parser {
                         config.timeout_ms = static_cast<int>(*timeout);
                     }
                     config.output = prompt_fields.optionalString({"output", "save_to", "input_variable"});
+                    if (const json *options = prompt_fields.find({"options", "dynamic_options"}); options != nullptr) {
+                        if (!options->is_object()) reject("action node '" + id + "' prompt_config.options must be an object");
+                        config.options = *options;
+                    }
                     for (auto it = prompt->begin(); it != prompt->end(); ++it) {
                         if (!prompt_used.count(it.key())) {
                             warnings.push_back("action node '" + id + "': unused prompt_config field '" + it.key() + "'");
