@@ -532,7 +532,7 @@
           "next_value": "n",
           "previous_value": "p",
           "back_value": "0",
-          "labelFormat": "$BankChannel - $BankCode",
+          "labelFormat": "$BankChannel ($BankCode)",
           "valueFormat": "$BankCode"
         }
       },
