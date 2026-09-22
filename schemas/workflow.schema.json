@@ -69,7 +69,7 @@
         "options": {
           "type": "object",
           "additionalProperties": true,
-          "description": "Dynamic menu options. `source` resolves to an array; `label`/`labels` is a string or list of object properties concatenated with `separator`; `value` selects the stored property. Supports raw scalar arrays and pagination via `page_size`, `page_variable`, `next_value`, `previous_value`, and `back_value`."
+          "description": "Dynamic menu options. `source` resolves to an array; `labelFormat` and `valueFormat` support `$Property` placeholders (for example `$BankChannel - $BankCode` and `$BankCode`) and determine the displayed label and stored value. Supports raw scalar arrays and pagination via `page_size`, `page_variable`, `next_value`, `previous_value`, and `back_value`."
         },
         "timeout": { "type": ["integer", "string"], "description": "Milliseconds, or a duration string such as 90s / 2m" }
       }

@@ -527,17 +527,13 @@
         "timeout": "2m",
         "options": {
           "source": "$banks",
-          "label": [
-            "BankChannel",
-            "BankCode"
-          ],
-          "value": "BankCode",
-          "separator": " - ",
           "page_size": 5,
           "page_variable": "bank_page",
           "next_value": "n",
           "previous_value": "p",
-          "back_value": "0"
+          "back_value": "0",
+          "labelFormat": "$BankChannel - $BankCode",
+          "valueFormat": "$BankCode"
         }
       },
       "next": "wd_bank_account"
