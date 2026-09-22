@@ -230,7 +230,8 @@ namespace sapo::tasks {
                 const auto rendered = renderDynamicMenu(prompt, source, page, input.is_string() ? input.get<std::string>() : optionText(input), execution, node);
                 if (rendered.selected) {
                     if (input == prompt.options.value("back_value", "0")) {
-                        // A dynamic menu's back value is still a value; normal choice routing can handle it.
+                        const std::string backNext = prompt.options.value("back_next", "");
+                        if (!backNext.empty()) return JumpTo{backNext};
                     }
                 } else {
                     SuspendRequest suspend;

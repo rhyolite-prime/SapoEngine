@@ -532,6 +532,7 @@
           "next_value": "n",
           "previous_value": "p",
           "back_value": "0",
+          "back_next": "menu_withdrawal",
           "labelFormat": "$BankChannel ($BankCode)",
           "valueFormat": "$BankCode"
         }
