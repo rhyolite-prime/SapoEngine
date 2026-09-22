@@ -574,7 +574,7 @@
       "prompt_config": {
         "message": "Enter Recipient Phone Number:\n0. Back",
         "interaction_type": "input",
-        "input_validation": "matches(input, '^(0|0[0-9]{9}|233[0-9]{9}|\\+233[0-9]{9})$')",
+        "input_validation": "matches(input, '^(0|0[0-9]{9}|233[0-9]{9}|[+]233[0-9]{9})$')",
         "timeout": "2m"
       },
       "next": "check_bank_recipient_phone_back"
@@ -630,20 +630,100 @@
         "input_validation": "matches(input, '^[0-9]{4}$') ",
         "timeout": "2m"
       },
-      "next": "wd_bank_success"
+      "next": "call_flexy_to_bank_api"
+    },
+    {
+      "id": "call_flexy_to_bank_api",
+      "type": "command",
+      "command": "http.post",
+      "label": "Initialize Flexy Withdrawal to Bank via API",
+      "http_request": {
+        "url": "https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/smart-suite/initialize-flexy-withdrawal-to-bank",
+        "headers": {
+          "ClientId": "$clientId",
+          "ClientSecret": "$clientSecret",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "senderMsisdn": "${coalesce(phoneNo, msisdn)}",
+          "bankName": "$bank_name",
+          "amount": "${to_number(withdraw_amount)}",
+          "bankBranch": "N/A",
+          "bankBranchCode": "N/A",
+          "bankAccountNumber": "$bank_account",
+          "bankAccountName": "N/A",
+          "description": "Withdrawal(Bank)",
+          "accountType": "F",
+          "recipientPhoneNumber": "$recipient_phone",
+          "integrationChannel": "ussd-pos",
+          "integratingService": "DACCU(*920*108#)",
+          "transactionType": "Withdrawal",
+          "pin": "$user_pin"
+        },
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "api_response": "$.body",
+        "api_status": "$.status",
+        "bank_withdrawal_message": "$.body.message"
+      },
+      "on_error": "bank_withdrawal_api_transport_error",
+      "next": "check_bank_withdrawal_response"
+    },
+    {
+      "id": "check_bank_withdrawal_response",
+      "type": "if",
+      "label": "Check Flexy Withdrawal to Bank API Response",
+      "condition": "api_response != null && api_response.success == true",
+      "then": "wd_bank_success",
+      "else": "bank_withdrawal_api_rejection"
     },
     {
       "id": "wd_bank_success",
       "type": "terminate",
       "status": "success",
       "output": {
-        "message": "Transfer of GHS ${withdraw_amount} to ${bank_name} Account ${bank_account} submitted. Ref: BNK-${now('ms')}",
+        "message": "${coalesce(bank_withdrawal_message, api_response.message, \"Withdrawal Request accepted and being processed.\")}",
+        "success": true,
         "action": "withdrawal_bank",
         "bank": "$bank_name",
         "account": "$bank_account",
         "recipient_phone": "$recipient_phone",
-        "amount": "$withdraw_amount"
-      }
+        "amount": "$withdraw_amount",
+        "code": "${coalesce(api_response.code, 0)}"
+      },
+      "label": "Flexy Withdrawal to Bank accepted"
+    },
+    {
+      "id": "bank_withdrawal_api_rejection",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(api_response.message, \"Your withdrawal request could not be completed. Please try again later.\")}",
+        "success": false,
+        "action": "withdrawal_bank",
+        "code": "${coalesce(api_response.code, \"BANK_WITHDRAWAL_ERROR\")}",
+        "bank": "$bank_name"
+      },
+      "label": "Flexy Withdrawal to Bank rejected"
+    },
+    {
+      "id": "bank_withdrawal_api_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Dear customer, our bank withdrawal service is temporarily unavailable. Please try again later.",
+        "success": false,
+        "action": "withdrawal_bank",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}"
+      },
+      "label": "Flexy Withdrawal to Bank transport error"
     },
     {
       "id": "menu_savings_request",
