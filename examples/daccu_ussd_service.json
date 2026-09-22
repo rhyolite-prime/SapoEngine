@@ -574,7 +574,7 @@
       "prompt_config": {
         "message": "Enter Recipient Phone Number:\n0. Back",
         "interaction_type": "input",
-        "input_validation": "matches(input, '^(0|0[0-9]{9}|233[0-9]{9}|\\+233[0-9]{9})$')",
+        "input_validation": "matches(input, '^(0|0[0-9]{9}|233[0-9]{9}|[+]233[0-9]{9})$')",
         "timeout": "2m"
       },
       "next": "check_bank_recipient_phone_back"
