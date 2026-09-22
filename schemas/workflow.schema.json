@@ -69,7 +69,12 @@
         "options": {
           "type": "object",
           "additionalProperties": true,
-          "description": "Dynamic menu options. `source` resolves to an array; `labelFormat` and `valueFormat` support `$Property` placeholders (for example `$BankChannel - $BankCode` and `$BankCode`) and determine the displayed label and stored value. Supports raw scalar arrays and pagination via `page_size`, `page_variable`, `next_value`, `previous_value`, and `back_value`."
+          "description": "Dynamic menu options. `source` resolves to an array; `labelFormat` and `valueFormat` support `$Property` placeholders (for example `$BankChannel - $BankCode` and `$BankCode`) and determine the displayed label and stored value. Supports raw scalar arrays and pagination via `page_size`, `page_variable`, `next_value`, `previous_value`, `back_value`, and `back_next` (the node id to jump to when the back value is selected)."
+        },
+        "features": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Alias for dynamic menu options; may contain the options directly or under an `options` object."
         },
         "timeout": { "type": ["integer", "string"], "description": "Milliseconds, or a duration string such as 90s / 2m" }
       }

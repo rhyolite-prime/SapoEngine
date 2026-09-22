@@ -115,8 +115,11 @@ namespace sapo::tasks {
                                                  "invalid dynamic menu selection '" + input + "'", json{{"input", input}}, node.id);
                     }
                     const json &item = rows.at(static_cast<size_t>(offset + choice - 1));
+                    const std::string valueFormat = options.value("valueFormat", options.value("value_format", ""));
                     const std::string valueField = options.value("value", "");
-                    json selected = valueField.empty() ? (item.is_object() ? json(choice) : item) : optionProperty(item, valueField);
+                    json selected = !valueFormat.empty()
+                                        ? json(formatOption(valueFormat, item))
+                                        : (valueField.empty() ? (item.is_object() ? json(choice) : item) : optionProperty(item, valueField));
                     execution.write(node.input_variable.value_or(config.output.value_or("input")), selected);
                     return {{}, true};
                 }
@@ -227,7 +230,8 @@ namespace sapo::tasks {
                 const auto rendered = renderDynamicMenu(prompt, source, page, input.is_string() ? input.get<std::string>() : optionText(input), execution, node);
                 if (rendered.selected) {
                     if (input == prompt.options.value("back_value", "0")) {
-                        // A dynamic menu's back value is still a value; normal choice routing can handle it.
+                        const std::string backNext = prompt.options.value("back_next", "");
+                        if (!backNext.empty()) return JumpTo{backNext};
                     }
                 } else {
                     SuspendRequest suspend;
