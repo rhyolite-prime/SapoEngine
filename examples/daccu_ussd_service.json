@@ -242,7 +242,7 @@
       "cases": {
         "0": "main_menu",
         "1": "menu_momo_target",
-        "2": "wd_bank_select",
+        "2": "call_get_banks_api",
         "3": "menu_savings_request"
       },
       "default": "menu_withdrawal"
@@ -479,6 +479,42 @@
       }
     },
     {
+      "id": "call_get_banks_api",
+      "type": "command",
+      "command": "http.post",
+      "label": "Get Destination Banks via API",
+      "http_request": {
+        "url": "https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/smart-suite/get-banks",
+        "headers": {
+          "ClientId": "$clientId",
+          "ClientSecret": "$clientSecret",
+          "Content-Type": "application/json"
+        },
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "api_response": "$.body",
+        "api_status": "$.status",
+        "banks": "$.body.data",
+        "banks_message": "$.body.message"
+      },
+      "on_error": "banks_api_transport_error",
+      "next": "check_get_banks_response"
+    },
+    {
+      "id": "check_get_banks_response",
+      "type": "if",
+      "label": "Check Get Banks API Response",
+      "condition": "api_response != null && api_response.success == true",
+      "then": "wd_bank_select",
+      "else": "banks_api_rejection"
+    },
+    {
       "id": "wd_bank_select",
       "type": "action",
       "capability": "",
@@ -486,57 +522,50 @@
       "await_input": true,
       "input_variable": "bank_code",
       "prompt_config": {
-        "message": "Select Destination Bank:\n1. GCB Bank\n2. Ecobank\n3. Stanbic Bank\n4. Fidelity Bank\n0. Back",
+        "message": "Select Destination Bank:",
         "interaction_type": "menu",
-        "input_validation": "matches(input, '^[0-4]$')",
-        "timeout": "2m"
-      },
-      "next": "route_bank_select"
-    },
-    {
-      "id": "route_bank_select",
-      "type": "choice",
-      "expression": "$bank_code",
-      "cases": {
-        "0": "menu_withdrawal",
-        "1": "set_bank_gcb",
-        "2": "set_bank_ecobank",
-        "3": "set_bank_stanbic",
-        "4": "set_bank_fidelity"
-      },
-      "default": "wd_bank_select"
-    },
-    {
-      "id": "set_bank_gcb",
-      "type": "noop",
-      "assign": {
-        "bank_name": "GCB Bank"
+        "timeout": "2m",
+        "options": {
+          "source": "$banks",
+          "label": [
+            "BankChannel",
+            "BankCode"
+          ],
+          "value": "BankCode",
+          "separator": " - ",
+          "page_size": 5,
+          "page_variable": "bank_page",
+          "next_value": "n",
+          "previous_value": "p",
+          "back_value": "0"
+        }
       },
       "next": "wd_bank_account"
     },
     {
-      "id": "set_bank_ecobank",
-      "type": "noop",
-      "assign": {
-        "bank_name": "Ecobank"
+      "id": "banks_api_rejection",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(api_response.message, \"Unable to retrieve destination banks. Please try again later.\")}",
+        "success": false,
+        "action": "withdrawal_bank",
+        "error_code": "${coalesce(api_response.code, \"BANKS_API_ERROR\")}"
       },
-      "next": "wd_bank_account"
+      "label": "Get Banks API rejected"
     },
     {
-      "id": "set_bank_stanbic",
-      "type": "noop",
-      "assign": {
-        "bank_name": "Stanbic Bank"
+      "id": "banks_api_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Dear customer, our banking service is temporarily unavailable. Please try again later.",
+        "success": false,
+        "action": "withdrawal_bank",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}"
       },
-      "next": "wd_bank_account"
-    },
-    {
-      "id": "set_bank_fidelity",
-      "type": "noop",
-      "assign": {
-        "bank_name": "Fidelity Bank"
-      },
-      "next": "wd_bank_account"
+      "label": "Get Banks API transport error"
     },
     {
       "id": "wd_bank_account",
