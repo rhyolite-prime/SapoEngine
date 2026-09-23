@@ -294,6 +294,7 @@ namespace sapo::parser {
             std::optional<Expression> input_validation;
             std::optional<int> timeout_ms;
             std::optional<std::string> output;      // where the user's reply is stored
+            nlohmann::json options = nlohmann::json::object(); // dynamic menu source/label/value/pagination
         };
 
         std::string capability;                     // optional plugin call before suspending
