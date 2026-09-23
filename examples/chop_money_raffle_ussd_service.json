@@ -1,7 +1,7 @@
 {
   "name": "examples.chop_money_raffle_ussd_service",
   "version": "1.0",
-  "description": "Chop Money Raffle USSD Service built with Sapo DSL Engine: buy raffle tickets (active raffles -> raffle option -> ticket group -> mobile money payment), view tickets, upcoming raffles, account and support.",
+  "description": "Chop Money Raffle USSD Service built with Sapo DSL Engine: buy raffle tickets (active raffles -> raffle option -> ticket group -> mobile money payment), view my tickets with raffle stats, upcoming raffles, account and support.",
   "defaults": {
     "service_name": "Chop Money Raffle",
     "phoneNo": "0242602262",
@@ -439,11 +439,214 @@
     },
     {
       "id": "my_tickets",
+      "type": "action",
+      "capability": "",
+      "label": "My Tickets PIN Authorization",
+      "await_input": true,
+      "input_variable": "user_pin",
+      "prompt_config": {
+        "message": "My Tickets\nEnter 4-digit PIN:",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$')",
+        "timeout": "2m"
+      },
+      "next": "set_tickets_context"
+    },
+    {
+      "id": "set_tickets_context",
+      "type": "noop",
+      "label": "Normalize phone number to 233 format for My Tickets APIs",
+      "assign": {
+        "customer_phone": "${if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"+233\"), \"233\" + substring(coalesce(phoneNo, msisdn, \"0242602262\"), 4), if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"0\"), \"233\" + substring(coalesce(phoneNo, msisdn, \"0242602262\"), 1), if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"233\") && len(coalesce(phoneNo, msisdn, \"0242602262\")) == 12, coalesce(phoneNo, msisdn, \"0242602262\"), if(len(coalesce(phoneNo, msisdn, \"0242602262\")) == 9, \"233\" + coalesce(phoneNo, msisdn, \"0242602262\"), coalesce(phoneNo, msisdn, \"0242602262\")))))}"
+      },
+      "next": "call_ticket_summary"
+    },
+    {
+      "id": "call_ticket_summary",
+      "type": "command",
+      "command": "http.post",
+      "label": "Fetch Customer Ticket Summary API",
+      "http_request": {
+        "url": "https://nsaa-api.rhyoliteprime.com/api/v1/customers/get-ticket-summary",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "phoneNo": "$customer_phone",
+          "pin": "${to_string(user_pin)}"
+        },
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "tickets_response": "$.body",
+        "ticket_list": "$.body.result.data",
+        "tickets_message": "$.body.message"
+      },
+      "on_error": "tickets_transport_error",
+      "next": "check_tickets_response"
+    },
+    {
+      "id": "check_tickets_response",
+      "type": "if",
+      "label": "Check Ticket Summary API Response",
+      "condition": "tickets_response != null && tickets_response.success == true",
+      "then": "check_tickets_empty",
+      "else": "tickets_rejection"
+    },
+    {
+      "id": "check_tickets_empty",
+      "type": "if",
+      "label": "Check if the customer has any tickets",
+      "condition": "is_array(ticket_list) && len(ticket_list) > 0",
+      "then": "menu_tickets",
+      "else": "tickets_none"
+    },
+    {
+      "id": "menu_tickets",
+      "type": "action",
+      "capability": "",
+      "label": "My Tickets Selection Menu",
+      "await_input": true,
+      "input_variable": "ticket_choice",
+      "prompt_config": {
+        "message": "${'My Tickets:\n' + join(map(ticket_list, (index + 1) + '. ' + item.ticketAlias + ' - ' + item.raffleName + ' (' + item.quantity + ' Tickets)'), '\n') + '\n0. Back'}",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-9]$')",
+        "timeout": "2m"
+      },
+      "next": "check_tickets_back"
+    },
+    {
+      "id": "check_tickets_back",
+      "type": "if",
+      "label": "Check if User entered 0 to go Back",
+      "condition": "ticket_choice == '0' || ticket_choice == 0",
+      "then": "main_menu",
+      "else": "check_tickets_range"
+    },
+    {
+      "id": "check_tickets_range",
+      "type": "if",
+      "label": "Validate selected ticket number",
+      "condition": "to_number(ticket_choice) >= 1 && to_number(ticket_choice) <= len(ticket_list)",
+      "then": "set_selected_ticket",
+      "else": "menu_tickets"
+    },
+    {
+      "id": "set_selected_ticket",
+      "type": "noop",
+      "label": "Record Selected Ticket",
+      "assign": {
+        "selected_raffle_id": "${get(ticket_list, '[' + to_string(to_number(ticket_choice) - 1) + ']', null).raffleId}",
+        "selected_ticket_alias": "${get(ticket_list, '[' + to_string(to_number(ticket_choice) - 1) + ']', null).ticketAlias}",
+        "selected_raffle_name": "${get(ticket_list, '[' + to_string(to_number(ticket_choice) - 1) + ']', null).raffleName}"
+      },
+      "next": "call_raffle_stats"
+    },
+    {
+      "id": "call_raffle_stats",
+      "type": "command",
+      "command": "http.get",
+      "label": "Fetch Raffle Stats API",
+      "http_request": {
+        "url": "https://nsaa-api.rhyoliteprime.com/api/v1/raffle/get-raffle-stats",
+        "query": {
+          "raffleId": "$selected_raffle_id"
+        },
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "stats_response": "$.body",
+        "stats_message": "$.body.message"
+      },
+      "on_error": "stats_transport_error",
+      "next": "check_stats_response"
+    },
+    {
+      "id": "check_stats_response",
+      "type": "if",
+      "label": "Check Raffle Stats API Response",
+      "condition": "stats_response != null && stats_response.success == true",
+      "then": "stats_display",
+      "else": "stats_rejection"
+    },
+    {
+      "id": "stats_display",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(stats_message, \"Raffle stats are not available at the moment.\")}",
+        "action": "raffle_stats",
+        "raffleId": "$selected_raffle_id",
+        "ticketAlias": "$selected_ticket_alias",
+        "raffleName": "$selected_raffle_name"
+      }
+    },
+    {
+      "id": "stats_rejection",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(stats_message, \"Failed to retrieve raffle stats. Please try again.\")}",
+        "success": false,
+        "action": "raffle_stats",
+        "raffleId": "$selected_raffle_id",
+        "ticketAlias": "$selected_ticket_alias"
+      }
+    },
+    {
+      "id": "stats_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(error.data.body.message, \"Dear customer, the raffle stats service is temporarily unavailable. Please try again in a few moments.\")}",
+        "success": false,
+        "action": "raffle_stats",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}",
+        "response_body": "$error.data.body"
+      }
+    },
+    {
+      "id": "tickets_rejection",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(tickets_message, \"Failed to retrieve your tickets. Please check your PIN and try again.\")}",
+        "success": false,
+        "action": "my_tickets"
+      }
+    },
+    {
+      "id": "tickets_none",
       "type": "terminate",
       "status": "success",
       "output": {
         "message": "You have no tickets yet. Select Buy Tickets to enter the next raffle draw.",
         "action": "my_tickets"
+      }
+    },
+    {
+      "id": "tickets_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(error.data.body.message, \"Dear customer, the ticket service is temporarily unavailable. Please try again in a few moments.\")}",
+        "success": false,
+        "action": "my_tickets",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}",
+        "response_body": "$error.data.body"
       }
     },
     {
