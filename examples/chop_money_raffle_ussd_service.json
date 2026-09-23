@@ -1,0 +1,477 @@
+{
+  "name": "examples.chop_money_raffle_ussd_service",
+  "version": "1.0",
+  "description": "Chop Money Raffle USSD Service built with Sapo DSL Engine: buy raffle tickets (active raffles -> raffle option -> ticket group -> mobile money payment), view tickets, upcoming raffles, account and support.",
+  "defaults": {
+    "service_name": "Chop Money Raffle",
+    "phoneNo": "0242602262",
+    "provider": "mtn",
+    "paymentMethod": "Mobile Money",
+    "purchaseChannel": "USSD"
+  },
+  "nodes": [
+    {
+      "id": "main_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Chop Money Raffle Main Menu",
+      "await_input": true,
+      "input_variable": "main_menu_choice",
+      "prompt_config": {
+        "message": "Welcome to Chop Money Raffle\n1. Buy Tickets\n2. My Tickets\n3. Upcoming Raffles\n4. Account\n5. Help and Support",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[1-5]$')",
+        "timeout": "2m"
+      },
+      "next": "route_main_menu"
+    },
+    {
+      "id": "route_main_menu",
+      "type": "choice",
+      "label": "Route Main Menu selection",
+      "expression": "$main_menu_choice",
+      "cases": {
+        "1": "call_active_raffles",
+        "2": "my_tickets",
+        "3": "upcoming_raffles",
+        "4": "account_info",
+        "5": "help_support"
+      },
+      "default": "main_menu"
+    },
+    {
+      "id": "call_active_raffles",
+      "type": "command",
+      "command": "http.get",
+      "label": "Fetch Active Raffles API",
+      "http_request": {
+        "url": "https://nsaa-api.rhyoliteprime.com/api/v1/raffle/get-active-raffles",
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "raffles_response": "$.body",
+        "raffle_list": "$.body.result.data"
+      },
+      "on_error": "raffles_transport_error",
+      "next": "check_raffles_response"
+    },
+    {
+      "id": "check_raffles_response",
+      "type": "if",
+      "label": "Check Active Raffles API Response",
+      "condition": "raffles_response != null && raffles_response.success == true",
+      "then": "check_raffles_empty",
+      "else": "raffles_rejection"
+    },
+    {
+      "id": "check_raffles_empty",
+      "type": "if",
+      "label": "Check if any Active Raffles were returned",
+      "condition": "is_array(raffle_list) && len(raffle_list) > 0",
+      "then": "menu_raffles",
+      "else": "raffles_none"
+    },
+    {
+      "id": "menu_raffles",
+      "type": "action",
+      "capability": "",
+      "label": "Active Raffle Selection Menu",
+      "await_input": true,
+      "input_variable": "raffle_choice",
+      "prompt_config": {
+        "message": "${'Buy Tickets\nSelect Raffle:\n' + join(map(raffle_list, (index + 1) + '. ' + item.name), '\n') + '\n0. Back'}",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-9]$')",
+        "timeout": "2m"
+      },
+      "next": "check_raffles_back"
+    },
+    {
+      "id": "check_raffles_back",
+      "type": "if",
+      "label": "Check if User entered 0 to go Back",
+      "condition": "raffle_choice == '0' || raffle_choice == 0",
+      "then": "main_menu",
+      "else": "check_raffles_range"
+    },
+    {
+      "id": "check_raffles_range",
+      "type": "if",
+      "label": "Validate selected raffle number",
+      "condition": "to_number(raffle_choice) >= 1 && to_number(raffle_choice) <= len(raffle_list)",
+      "then": "set_selected_raffle",
+      "else": "menu_raffles"
+    },
+    {
+      "id": "set_selected_raffle",
+      "type": "noop",
+      "label": "Record Selected Raffle",
+      "assign": {
+        "raffle_id": "${get(raffle_list, '[' + to_string(to_number(raffle_choice) - 1) + ']', null).id}",
+        "raffle_name": "${get(raffle_list, '[' + to_string(to_number(raffle_choice) - 1) + ']', null).name}"
+      },
+      "next": "call_raffle_options"
+    },
+    {
+      "id": "call_raffle_options",
+      "type": "command",
+      "command": "http.get",
+      "label": "Fetch Raffle Options API",
+      "http_request": {
+        "url": "https://nsaa-api.rhyoliteprime.com/api/v1/raffle/get-active-raffle-options",
+        "query": {
+          "raffleId": "$raffle_id"
+        },
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "options_response": "$.body",
+        "option_list": "$.body.result.data"
+      },
+      "on_error": "options_transport_error",
+      "next": "check_options_response"
+    },
+    {
+      "id": "check_options_response",
+      "type": "if",
+      "label": "Check Raffle Options API Response",
+      "condition": "options_response != null && options_response.success == true",
+      "then": "check_options_empty",
+      "else": "options_rejection"
+    },
+    {
+      "id": "check_options_empty",
+      "type": "if",
+      "label": "Check if any Raffle Options were returned",
+      "condition": "is_array(option_list) && len(option_list) > 0",
+      "then": "menu_options",
+      "else": "options_none"
+    },
+    {
+      "id": "menu_options",
+      "type": "action",
+      "capability": "",
+      "label": "Raffle Option Selection Menu",
+      "await_input": true,
+      "input_variable": "option_choice",
+      "prompt_config": {
+        "message": "${'Select Option for ' + raffle_name + ':\n' + join(map(option_list, (index + 1) + '. ' + item.name), '\n') + '\n0. Back'}",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-9]$')",
+        "timeout": "2m"
+      },
+      "next": "check_options_back"
+    },
+    {
+      "id": "check_options_back",
+      "type": "if",
+      "label": "Check if User entered 0 to go Back",
+      "condition": "option_choice == '0' || option_choice == 0",
+      "then": "menu_raffles",
+      "else": "check_options_range"
+    },
+    {
+      "id": "check_options_range",
+      "type": "if",
+      "label": "Validate selected option number",
+      "condition": "to_number(option_choice) >= 1 && to_number(option_choice) <= len(option_list)",
+      "then": "set_selected_option",
+      "else": "menu_options"
+    },
+    {
+      "id": "set_selected_option",
+      "type": "noop",
+      "label": "Record Selected Raffle Option",
+      "assign": {
+        "selected_option_id": "${get(option_list, '[' + to_string(to_number(option_choice) - 1) + ']', null).id}",
+        "selected_option_name": "${get(option_list, '[' + to_string(to_number(option_choice) - 1) + ']', null).name}"
+      },
+      "next": "call_ticket_groups"
+    },
+    {
+      "id": "call_ticket_groups",
+      "type": "command",
+      "command": "http.get",
+      "label": "Fetch Ticket Groups API",
+      "http_request": {
+        "url": "https://nsaa-api.rhyoliteprime.com/api/v1/cms/tickets/get-groups",
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "groups_response": "$.body",
+        "group_list": "$.body.result.data"
+      },
+      "on_error": "groups_transport_error",
+      "next": "check_groups_response"
+    },
+    {
+      "id": "check_groups_response",
+      "type": "if",
+      "label": "Check Ticket Groups API Response",
+      "condition": "groups_response != null && groups_response.success == true",
+      "then": "check_groups_empty",
+      "else": "groups_rejection"
+    },
+    {
+      "id": "check_groups_empty",
+      "type": "if",
+      "label": "Check if any Ticket Groups were returned",
+      "condition": "is_array(group_list) && len(group_list) > 0",
+      "then": "menu_groups",
+      "else": "groups_none"
+    },
+    {
+      "id": "menu_groups",
+      "type": "action",
+      "capability": "",
+      "label": "Ticket Group Selection Menu",
+      "await_input": true,
+      "input_variable": "group_choice",
+      "prompt_config": {
+        "message": "${'Select Tickets:\n' + join(map(group_list, (index + 1) + '. ' + item.name), '\n') + '\n0. Back'}",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-9]$')",
+        "timeout": "2m"
+      },
+      "next": "check_groups_back"
+    },
+    {
+      "id": "check_groups_back",
+      "type": "if",
+      "label": "Check if User entered 0 to go Back",
+      "condition": "group_choice == '0' || group_choice == 0",
+      "then": "menu_options",
+      "else": "check_groups_range"
+    },
+    {
+      "id": "check_groups_range",
+      "type": "if",
+      "label": "Validate selected ticket group number",
+      "condition": "to_number(group_choice) >= 1 && to_number(group_choice) <= len(group_list)",
+      "then": "set_selected_group",
+      "else": "menu_groups"
+    },
+    {
+      "id": "set_selected_group",
+      "type": "noop",
+      "label": "Record Selected Ticket Group and Prepare Purchase Context",
+      "assign": {
+        "ticket_group_id": "${get(group_list, '[' + to_string(to_number(group_choice) - 1) + ']', null).id}",
+        "ticket_group_name": "${get(group_list, '[' + to_string(to_number(group_choice) - 1) + ']', null).name}",
+        "ticket_quantity": "${get(group_list, '[' + to_string(to_number(group_choice) - 1) + ']', null).quantity}",
+        "customer_phone": "${if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"+233\"), \"233\" + substring(coalesce(phoneNo, msisdn, \"0242602262\"), 4), if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"0\"), \"233\" + substring(coalesce(phoneNo, msisdn, \"0242602262\"), 1), if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"233\") && len(coalesce(phoneNo, msisdn, \"0242602262\")) == 12, coalesce(phoneNo, msisdn, \"0242602262\"), if(len(coalesce(phoneNo, msisdn, \"0242602262\")) == 9, \"233\" + coalesce(phoneNo, msisdn, \"0242602262\"), coalesce(phoneNo, msisdn, \"0242602262\")))))}"
+      },
+      "next": "call_buy_ticket"
+    },
+    {
+      "id": "call_buy_ticket",
+      "type": "command",
+      "command": "http.post",
+      "label": "Buy Raffle Ticket API",
+      "http_request": {
+        "url": "https://nsaa-api.rhyoliteprime.com/api/v1/ticket/buy",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "raffleId": "$raffle_id",
+          "selectedOptionValue": "$selected_option_id",
+          "ticketGroupId": "$ticket_group_id",
+          "customerPhone": "$customer_phone",
+          "paymentMethod": "${coalesce(paymentMethod, \"Mobile Money\")}",
+          "purchaseChannel": "${coalesce(purchaseChannel, \"USSD\")}",
+          "provider": "${lower(coalesce(provider, network, \"mtn\"))}"
+        },
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "buy_response": "$.body",
+        "buy_message": "$.body.message"
+      },
+      "on_error": "buy_transport_error",
+      "next": "buy_ticket_result"
+    },
+    {
+      "id": "buy_ticket_result",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(buy_message, \"Authorize payment by entering your PIN on your mobile device. If no bill prompt appears, dial *170# to resume.\")}",
+        "action": "buy_ticket",
+        "api_success": "${coalesce(buy_response.success, false)}",
+        "raffle": "$raffle_name",
+        "raffleId": "$raffle_id",
+        "selectedOptionValue": "$selected_option_id",
+        "ticketGroup": "$ticket_group_name",
+        "ticketGroupId": "$ticket_group_id",
+        "quantity": "${to_number(coalesce(ticket_quantity, 0))}",
+        "customerPhone": "$customer_phone"
+      }
+    },
+    {
+      "id": "buy_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(error.data.body.message, \"Dear customer, the ticket purchase service is temporarily unavailable. Please try again in a few moments.\")}",
+        "success": false,
+        "action": "buy_ticket",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}",
+        "response_body": "$error.data.body"
+      }
+    },
+    {
+      "id": "raffles_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(error.data.body.message, \"Dear customer, the raffle service is temporarily unavailable. Please try again in a few moments.\")}",
+        "success": false,
+        "action": "get_active_raffles",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}",
+        "response_body": "$error.data.body"
+      }
+    },
+    {
+      "id": "raffles_rejection",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(raffles_response.message, \"Failed to retrieve active raffles. Please try again.\")}",
+        "success": false,
+        "action": "get_active_raffles"
+      }
+    },
+    {
+      "id": "raffles_none",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "There are no active raffles at the moment. Please check back later.",
+        "action": "get_active_raffles"
+      }
+    },
+    {
+      "id": "options_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(error.data.body.message, \"Dear customer, the raffle options service is temporarily unavailable. Please try again in a few moments.\")}",
+        "success": false,
+        "action": "get_active_raffle_options",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}",
+        "response_body": "$error.data.body"
+      }
+    },
+    {
+      "id": "options_rejection",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(options_response.message, \"Failed to retrieve raffle options. Please try again.\")}",
+        "success": false,
+        "action": "get_active_raffle_options"
+      }
+    },
+    {
+      "id": "options_none",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "This raffle has no options available yet. Please try again later.",
+        "action": "get_active_raffle_options"
+      }
+    },
+    {
+      "id": "groups_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(error.data.body.message, \"Dear customer, the ticket selection service is temporarily unavailable. Please try again in a few moments.\")}",
+        "success": false,
+        "action": "get_ticket_groups",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}",
+        "response_body": "$error.data.body"
+      }
+    },
+    {
+      "id": "groups_rejection",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(groups_response.message, \"Failed to retrieve ticket options. Please try again.\")}",
+        "success": false,
+        "action": "get_ticket_groups"
+      }
+    },
+    {
+      "id": "groups_none",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "No ticket packages are available at the moment. Please check back later.",
+        "action": "get_ticket_groups"
+      }
+    },
+    {
+      "id": "my_tickets",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "You have no tickets yet. Select Buy Tickets to enter the next raffle draw.",
+        "action": "my_tickets"
+      }
+    },
+    {
+      "id": "upcoming_raffles",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "No upcoming raffles have been announced yet. Please check back later.",
+        "action": "upcoming_raffles"
+      }
+    },
+    {
+      "id": "account_info",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Your Chop Money Raffle account is linked to your mobile number ${phoneNo}. Full account services coming soon.",
+        "action": "account"
+      }
+    },
+    {
+      "id": "help_support",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Chop Money Raffle\nHow to play:\n1. Buy Tickets\n2. Select a raffle\n3. Pick your option\n4. Select ticket package\n5. Authorize payment on your phone\nDraws are held per raffle schedule. Play responsibly.",
+        "action": "help_support"
+      }
+    }
+  ]
+}
