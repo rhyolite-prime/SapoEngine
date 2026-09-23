@@ -251,7 +251,7 @@
         "0": "main_menu",
         "1": "menu_momo_target",
         "2": "wd_bank_select",
-        "3": "wd_savings_amount"
+        "3": "menu_savings_request"
       },
       "default": "menu_withdrawal"
     },
@@ -656,6 +656,301 @@
         "message": "Your Savings Withdrawal Request for GHS ${savings_amount} has been received and queued for committee review. Ref: SVR-${now('ms')}",
         "action": "withdrawal_savings_request",
         "amount": "$savings_amount"
+      }
+    },
+    {
+      "id": "menu_savings_request",
+      "type": "action",
+      "capability": "",
+      "label": "Savings Withdrawal Request Menu",
+      "await_input": true,
+      "input_variable": "savings_request_choice",
+      "prompt_config": {
+        "message": "Savings Withdrawal Request\n1. Kiddy Account\n2. Savings Account\n0. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-2]$')",
+        "timeout": "2m"
+      },
+      "next": "route_savings_request"
+    },
+    {
+      "id": "route_savings_request",
+      "type": "choice",
+      "label": "Route Savings Withdrawal Request selection",
+      "expression": "$savings_request_choice",
+      "cases": {
+        "0": "menu_withdrawal",
+        "1": "set_kiddy_context",
+        "2": "wd_savings_amount"
+      },
+      "default": "menu_savings_request"
+    },
+    {
+      "id": "set_kiddy_context",
+      "type": "noop",
+      "label": "Normalize phone number to local format for Kiddy APIs",
+      "assign": {
+        "local_phone": "${if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"+233\"), \"0\" + substring(coalesce(phoneNo, msisdn, \"0242602262\"), 4), if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"233\") && len(coalesce(phoneNo, msisdn, \"0242602262\")) == 12, \"0\" + substring(coalesce(phoneNo, msisdn, \"0242602262\"), 3), if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"0\"), coalesce(phoneNo, msisdn, \"0242602262\"), if(len(coalesce(phoneNo, msisdn, \"0242602262\")) == 9, \"0\" + coalesce(phoneNo, msisdn, \"0242602262\"), coalesce(phoneNo, msisdn, \"0242602262\")))))}"
+      },
+      "next": "sv_kiddy_pin"
+    },
+    {
+      "id": "sv_kiddy_pin",
+      "type": "action",
+      "capability": "",
+      "label": "Authorize Kiddy Account Balance Enquiry",
+      "await_input": true,
+      "input_variable": "user_pin",
+      "prompt_config": {
+        "message": "Kiddy Account Withdrawal\nEnter 4-digit PIN:",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$')",
+        "timeout": "2m"
+      },
+      "next": "call_kiddy_balances_api"
+    },
+    {
+      "id": "call_kiddy_balances_api",
+      "type": "command",
+      "command": "http.post",
+      "label": "Fetch Kiddy Account Balances API",
+      "http_request": {
+        "url": "https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/smart-suite/get-account-balance",
+        "headers": {
+          "ClientId": "${coalesce(depositClientId, clientId, \"TDEXLvnWgM\")}",
+          "ClientSecret": "${coalesce(depositClientSecret, clientSecret, \"47809b129a3549c48\")}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "phoneNo": "$local_phone",
+          "pin": "${to_string(user_pin)}",
+          "accountType": "K"
+        },
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "kiddy_balances_response": "$.body",
+        "kiddy_list": "$.body.data",
+        "kiddy_balances_message": "$.body.message"
+      },
+      "on_error": "kiddy_balances_transport_error",
+      "next": "check_kiddy_balances"
+    },
+    {
+      "id": "check_kiddy_balances",
+      "type": "if",
+      "label": "Check Kiddy Balances API Response",
+      "condition": "kiddy_balances_response != null && kiddy_balances_response.success == true",
+      "then": "check_kiddy_list_empty",
+      "else": "kiddy_balances_rejection"
+    },
+    {
+      "id": "check_kiddy_list_empty",
+      "type": "if",
+      "label": "Check if any Kiddy Accounts were returned",
+      "condition": "is_array(kiddy_list) && len(kiddy_list) > 0",
+      "then": "build_kiddy_menu",
+      "else": "kiddy_no_accounts"
+    },
+    {
+      "id": "build_kiddy_menu",
+      "type": "noop",
+      "label": "Build Kiddy Child Selection Menu",
+      "assign": {
+        "kiddy_menu_text": "${'Kiddy Account Withdrawal\nSelect Child:\n' + join(map(kiddy_list, (index + 1) + '. ' + item.SURNAME + ' (GHS ' + item.BALANCE + ')'), '\n') + '\n0. Back'}"
+      },
+      "next": "menu_kiddy_child"
+    },
+    {
+      "id": "menu_kiddy_child",
+      "type": "action",
+      "capability": "",
+      "label": "Kiddy Child Selection Menu",
+      "await_input": true,
+      "input_variable": "kiddy_choice",
+      "prompt_config": {
+        "message": "${kiddy_menu_text}",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-9]$')",
+        "timeout": "2m"
+      },
+      "next": "check_kiddy_child_back"
+    },
+    {
+      "id": "check_kiddy_child_back",
+      "type": "if",
+      "label": "Check if User entered 0 to go Back",
+      "condition": "kiddy_choice == '0' || kiddy_choice == 0",
+      "then": "menu_savings_request",
+      "else": "check_kiddy_child_range"
+    },
+    {
+      "id": "check_kiddy_child_range",
+      "type": "if",
+      "label": "Validate selected child number",
+      "condition": "to_number(kiddy_choice) >= 1 && to_number(kiddy_choice) <= len(kiddy_list)",
+      "then": "set_selected_kiddy",
+      "else": "menu_kiddy_child"
+    },
+    {
+      "id": "set_selected_kiddy",
+      "type": "noop",
+      "label": "Record Selected Kiddy Child",
+      "assign": {
+        "kiddy_serial_no": "${get(kiddy_list, '[' + to_string(to_number(kiddy_choice) - 1) + ']', null).CHILDNO}",
+        "kiddy_child_name": "${get(kiddy_list, '[' + to_string(to_number(kiddy_choice) - 1) + ']', null).SURNAME}",
+        "kiddy_child_balance": "${get(kiddy_list, '[' + to_string(to_number(kiddy_choice) - 1) + ']', null).BALANCE}"
+      },
+      "next": "kiddy_amount_prompt"
+    },
+    {
+      "id": "kiddy_amount_prompt",
+      "type": "action",
+      "capability": "",
+      "label": "Kiddy Withdrawal Amount",
+      "await_input": true,
+      "input_variable": "kiddy_amount",
+      "prompt_config": {
+        "message": "Enter Withdrawal Amount for ${kiddy_child_name} (GHS):",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^[0-9]+(\\.[0-9]{1,2})?$')",
+        "timeout": "2m"
+      },
+      "next": "kiddy_withdraw_pin"
+    },
+    {
+      "id": "kiddy_withdraw_pin",
+      "type": "action",
+      "capability": "",
+      "label": "Authorize Kiddy Withdrawal Request",
+      "await_input": true,
+      "input_variable": "user_pin",
+      "prompt_config": {
+        "message": "Enter 4-digit PIN to withdraw GHS ${kiddy_amount} from ${kiddy_child_name}'s Kiddy Account:",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$')",
+        "timeout": "2m"
+      },
+      "next": "call_kiddy_withdrawal_api"
+    },
+    {
+      "id": "call_kiddy_withdrawal_api",
+      "type": "command",
+      "command": "http.post",
+      "label": "Submit Kiddy Withdrawal Request API",
+      "http_request": {
+        "url": "https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/smart-suite/submit-kiddy-withdrawal-request",
+        "headers": {
+          "ClientId": "${coalesce(depositClientId, clientId, \"TDEXLvnWgM\")}",
+          "ClientSecret": "${coalesce(depositClientSecret, clientSecret, \"47809b129a3549c48\")}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "phoneNo": "$local_phone",
+          "amount": "${to_number(kiddy_amount)}",
+          "serialNo": "${coalesce(kiddy_serial_no, \"\")}",
+          "pin": "${to_string(user_pin)}"
+        },
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "kiddy_wd_response": "$.body",
+        "kiddy_wd_message": "$.body.message",
+        "kiddy_wd_checkout_url": "$.body.checkoutUrl"
+      },
+      "on_error": "kiddy_wd_transport_error",
+      "next": "check_kiddy_wd_response"
+    },
+    {
+      "id": "check_kiddy_wd_response",
+      "type": "if",
+      "label": "Check Kiddy Withdrawal Response",
+      "condition": "kiddy_wd_response != null && kiddy_wd_response.success == true",
+      "then": "kiddy_wd_success",
+      "else": "kiddy_wd_rejection"
+    },
+    {
+      "id": "kiddy_wd_success",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(kiddy_wd_message, \"Your Kiddy Account withdrawal request has been submitted successfully.\")}",
+        "success": true,
+        "action": "withdrawal_kiddy_request",
+        "child": "$kiddy_child_name",
+        "serialNo": "${coalesce(kiddy_serial_no, \"\")}",
+        "amount": "${to_number(kiddy_amount)}",
+        "checkoutUrl": "${coalesce(kiddy_wd_checkout_url, \"\")}"
+      }
+    },
+    {
+      "id": "kiddy_wd_rejection",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(kiddy_wd_message, \"Failed to initiate withdrawal request from Kiddy Account. Please try again.\")}",
+        "success": false,
+        "action": "withdrawal_kiddy_request",
+        "child": "$kiddy_child_name",
+        "serialNo": "${coalesce(kiddy_serial_no, \"\")}",
+        "amount": "${to_number(kiddy_amount)}",
+        "code": "${coalesce(kiddy_wd_response.code, 1)}"
+      }
+    },
+    {
+      "id": "kiddy_wd_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(error.data.body.message, \"Dear customer, our Kiddy Account withdrawal service is temporarily unavailable. Please try again in a few moments.\")}",
+        "success": false,
+        "action": "withdrawal_kiddy_request",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}",
+        "response_body": "$error.data.body"
+      }
+    },
+    {
+      "id": "kiddy_balances_rejection",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(kiddy_balances_message, \"Failed to retrieve Kiddy Account balances. Please check your PIN and try again.\")}",
+        "success": false,
+        "action": "withdrawal_kiddy_balances",
+        "code": "${coalesce(kiddy_balances_response.code, 1)}"
+      }
+    },
+    {
+      "id": "kiddy_no_accounts",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "No Kiddy Accounts found linked to your profile.",
+        "action": "withdrawal_kiddy_balances"
+      }
+    },
+    {
+      "id": "kiddy_balances_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(error.data.body.message, \"Dear customer, our Kiddy Account balance service is temporarily unavailable. Please try again in a few moments.\")}",
+        "success": false,
+        "action": "withdrawal_kiddy_balances",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}",
+        "response_body": "$error.data.body"
       }
     },
     {
