@@ -1,0 +1,55 @@
+{
+  "name": "ussd_menu",
+  "version": "1.0",
+  "description": "Interactive USSD sample demonstrating menu prompt, input branching, and termination.",
+  "nodes": [
+    {
+      "id": "main_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Display Welcome Menu",
+      "await_input": true,
+      "input_variable": "menu_choice",
+      "prompt_config": {
+        "message": "Welcome to Sapo Bank\n1. Check Balance\n2. Mini Statement\n3. Exit",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[1-3]$')"
+      },
+      "next": "route_choice"
+    },
+    {
+      "id": "route_choice",
+      "type": "choice",
+      "label": "Route User Choice",
+      "choices": [
+        { "when": "menu_choice == '1'", "then": "check_balance" },
+        { "when": "menu_choice == '2'", "then": "mini_statement" }
+      ],
+      "default": "exit_service"
+    },
+    {
+      "id": "check_balance",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Your current balance is GHS 1,450.25. Thank you."
+      }
+    },
+    {
+      "id": "mini_statement",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Last 2 transactions:\n- CR GHS 200.00 (MoMo)\n- DR GHS 50.00 (Airtime)"
+      }
+    },
+    {
+      "id": "exit_service",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Thank you for using Sapo Bank. Goodbye."
+      }
+    }
+  ]
+}
