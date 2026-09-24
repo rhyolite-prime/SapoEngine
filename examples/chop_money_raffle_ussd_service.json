@@ -1,7 +1,7 @@
 {
   "name": "examples.chop_money_raffle_ussd_service",
   "version": "1.0",
-  "description": "Chop Money Raffle USSD Service built with Sapo DSL Engine: buy raffle tickets (active raffles -> raffle option -> ticket group -> mobile money payment), view my tickets with raffle stats, weekly upcoming raffles with raffle stats, account PIN services (get/reset/change) and support.",
+  "description": "Chop Money Raffle USSD Service built with Sapo DSL Engine: buy raffle tickets (active raffles -> raffle option -> ticket group -> mobile money payment), view my tickets with raffle stats, weekly upcoming raffles with raffle stats, account PIN services (get/reset/change) and help & support contact info.",
   "defaults": {
     "service_name": "Chop Money Raffle",
     "phoneNo": "0242602262",
@@ -979,7 +979,7 @@
       "type": "terminate",
       "status": "success",
       "output": {
-        "message": "Chop Money Raffle\nHow to play:\n1. Buy Tickets\n2. Select a raffle\n3. Pick your option\n4. Select ticket package\n5. Authorize payment on your phone\nDraws are held per raffle schedule. Play responsibly.",
+        "message": "Help and Support\n\n*** Contact Us Info ***\nCall us: 0244256444\nWhatsapp: 0244256444\nFacebook: ChopMoney GH\nEmail: info@nsaaplay.com",
         "action": "help_support"
       }
     }
