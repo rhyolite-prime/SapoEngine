@@ -1,0 +1,70 @@
+name: Build Sapo Engine
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and package (Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Configure Release build
+        run: >-
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DSAPO_ENABLE_CPR=OFF
+          -DSAPO_ENABLE_REDIS=ON
+          -DSAPO_BUILD_TESTS=OFF
+
+      - name: Build Sapo Engine
+        run: cmake --build build --parallel "$(nproc)"
+
+      - name: Install Drogon integration bundle
+        run: |
+          # Keep the generated install tree out of the checked-in sapo-dist snapshot.
+          rm -rf "$RUNNER_TEMP/sapo-package"
+          cmake --install build --prefix "$RUNNER_TEMP/sapo-package/sapo-dist"
+          test -s "$RUNNER_TEMP/sapo-package/sapo-dist/lib/libsapo_core.a"
+          test -f "$RUNNER_TEMP/sapo-package/sapo-dist/lib/cmake/SapoEngine/SapoEngineConfig.cmake"
+          test -f "$RUNNER_TEMP/sapo-package/sapo-dist/include/sapo/runtime/VirtualMachine.hpp"
+
+      - name: Verify installed CMake package
+        run: |
+          mkdir -p "$RUNNER_TEMP/sapo-consumer"
+          cat > "$RUNNER_TEMP/sapo-consumer/CMakeLists.txt" <<'EOF'
+          cmake_minimum_required(VERSION 3.28)
+          project(sapo_consumer_smoke LANGUAGES CXX)
+          find_package(SapoEngine CONFIG REQUIRED)
+          add_executable(sapo-consumer main.cpp)
+          target_link_libraries(sapo-consumer PRIVATE Sapo::core)
+          EOF
+          cat > "$RUNNER_TEMP/sapo-consumer/main.cpp" <<'EOF'
+          #include "runtime/VirtualMachine.hpp"
+          int main() { return 0; }
+          EOF
+          cmake -S "$RUNNER_TEMP/sapo-consumer" -B "$RUNNER_TEMP/sapo-consumer-build" \
+            -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/sapo-package/sapo-dist"
+          cmake --build "$RUNNER_TEMP/sapo-consumer-build" --parallel "$(nproc)"
+
+      - name: Zip integration bundle
+        run: |
+          rm -f "$GITHUB_WORKSPACE/sapo-dist.zip"
+          cd "$RUNNER_TEMP/sapo-package"
+          zip -qr "$GITHUB_WORKSPACE/sapo-dist.zip" sapo-dist
+
+      - name: Upload integration bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: sapo-engine-drogon-linux-x86_64
+          path: sapo-dist.zip
+          if-no-files-found: error
+          retention-days: 30
