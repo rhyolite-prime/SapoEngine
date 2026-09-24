@@ -1,7 +1,7 @@
 {
   "name": "examples.chop_money_raffle_ussd_service",
   "version": "1.0",
-  "description": "Chop Money Raffle USSD Service built with Sapo DSL Engine: buy raffle tickets (active raffles -> raffle option -> ticket group -> mobile money payment), view my tickets with raffle stats, weekly upcoming raffles with raffle stats, account and support.",
+  "description": "Chop Money Raffle USSD Service built with Sapo DSL Engine: buy raffle tickets (active raffles -> raffle option -> ticket group -> mobile money payment), view my tickets with raffle stats, weekly upcoming raffles with raffle stats, account PIN services (get/reset/change) and support.",
   "defaults": {
     "service_name": "Chop Money Raffle",
     "phoneNo": "0242602262",
@@ -34,7 +34,7 @@
         "1": "call_active_raffles",
         "2": "my_tickets",
         "3": "call_weekly_raffles",
-        "4": "account_info",
+        "4": "set_account_context",
         "5": "help_support"
       },
       "default": "main_menu"
@@ -761,12 +761,217 @@
       }
     },
     {
-      "id": "account_info",
+      "id": "set_account_context",
+      "type": "noop",
+      "label": "Normalize phone number for Account APIs",
+      "assign": {
+        "local_phone": "${if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"+233\"), \"0\" + substring(coalesce(phoneNo, msisdn, \"0242602262\"), 4), if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"233\") && len(coalesce(phoneNo, msisdn, \"0242602262\")) == 12, \"0\" + substring(coalesce(phoneNo, msisdn, \"0242602262\"), 3), if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"0\"), coalesce(phoneNo, msisdn, \"0242602262\"), if(len(coalesce(phoneNo, msisdn, \"0242602262\")) == 9, \"0\" + coalesce(phoneNo, msisdn, \"0242602262\"), coalesce(phoneNo, msisdn, \"0242602262\")))))}",
+        "customer_phone": "${if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"+233\"), \"233\" + substring(coalesce(phoneNo, msisdn, \"0242602262\"), 4), if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"0\"), \"233\" + substring(coalesce(phoneNo, msisdn, \"0242602262\"), 1), if(starts_with(coalesce(phoneNo, msisdn, \"0242602262\"), \"233\") && len(coalesce(phoneNo, msisdn, \"0242602262\")) == 12, coalesce(phoneNo, msisdn, \"0242602262\"), if(len(coalesce(phoneNo, msisdn, \"0242602262\")) == 9, \"233\" + coalesce(phoneNo, msisdn, \"0242602262\"), coalesce(phoneNo, msisdn, \"0242602262\")))))}"
+      },
+      "next": "menu_account"
+    },
+    {
+      "id": "menu_account",
+      "type": "action",
+      "capability": "",
+      "label": "Account Menu",
+      "await_input": true,
+      "input_variable": "account_choice",
+      "prompt_config": {
+        "message": "Account\n1. Get Login PIN\n2. Reset PIN\n3. Change PIN\n0. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-3]$')",
+        "timeout": "2m"
+      },
+      "next": "route_account"
+    },
+    {
+      "id": "route_account",
+      "type": "choice",
+      "label": "Route Account selection",
+      "expression": "$account_choice",
+      "cases": {
+        "0": "main_menu",
+        "1": "call_get_login_pin",
+        "2": "call_reset_pin",
+        "3": "account_old_pin"
+      },
+      "default": "menu_account"
+    },
+    {
+      "id": "call_get_login_pin",
+      "type": "command",
+      "command": "http.get",
+      "label": "Get Customer Login PIN API",
+      "http_request": {
+        "url": "https://nsaa-api.rhyoliteprime.com/api/v1/auth/customer/get-login-pin",
+        "query": {
+          "phoneNumber": "$local_phone"
+        },
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "login_pin_response": "$.body",
+        "login_pin_message": "$.body.message"
+      },
+      "on_error": "login_pin_transport_error",
+      "next": "get_login_pin_result"
+    },
+    {
+      "id": "get_login_pin_result",
       "type": "terminate",
       "status": "success",
       "output": {
-        "message": "Your Chop Money Raffle account is linked to your mobile number ${phoneNo}. Full account services coming soon.",
-        "action": "account"
+        "message": "${coalesce(login_pin_message, \"Your Login PIN could not be retrieved at the moment. Please try again.\")}",
+        "action": "get_login_pin",
+        "api_success": "${coalesce(login_pin_response.success, false)}"
+      }
+    },
+    {
+      "id": "login_pin_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(error.data.body.message, \"Dear customer, the Login PIN service is temporarily unavailable. Please try again in a few moments.\")}",
+        "success": false,
+        "action": "get_login_pin",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}",
+        "response_body": "$error.data.body"
+      }
+    },
+    {
+      "id": "call_reset_pin",
+      "type": "command",
+      "command": "http.get",
+      "label": "Reset Customer PIN API",
+      "http_request": {
+        "url": "https://nsaa-api.rhyoliteprime.com/api/v1/auth/customer/reset-pin",
+        "query": {
+          "phoneNumber": "$customer_phone"
+        },
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "reset_pin_response": "$.body",
+        "reset_pin_message": "$.body.message"
+      },
+      "on_error": "reset_pin_transport_error",
+      "next": "reset_pin_result"
+    },
+    {
+      "id": "reset_pin_result",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(reset_pin_message, \"Your PIN could not be reset at the moment. Please try again.\")}",
+        "action": "reset_pin",
+        "api_success": "${coalesce(reset_pin_response.success, false)}"
+      }
+    },
+    {
+      "id": "reset_pin_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(error.data.body.message, \"Dear customer, the PIN reset service is temporarily unavailable. Please try again in a few moments.\")}",
+        "success": false,
+        "action": "reset_pin",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}",
+        "response_body": "$error.data.body"
+      }
+    },
+    {
+      "id": "account_old_pin",
+      "type": "action",
+      "capability": "",
+      "label": "Enter Old PIN",
+      "await_input": true,
+      "input_variable": "account_old_pin",
+      "prompt_config": {
+        "message": "Change PIN\nEnter Old 4-digit PIN:",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$')",
+        "timeout": "2m"
+      },
+      "next": "account_new_pin"
+    },
+    {
+      "id": "account_new_pin",
+      "type": "action",
+      "capability": "",
+      "label": "Enter New PIN",
+      "await_input": true,
+      "input_variable": "account_new_pin",
+      "prompt_config": {
+        "message": "Enter New 4-digit PIN:",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$')",
+        "timeout": "2m"
+      },
+      "next": "call_change_pin"
+    },
+    {
+      "id": "call_change_pin",
+      "type": "command",
+      "command": "http.post",
+      "label": "Change Customer PIN API",
+      "http_request": {
+        "url": "https://nsaa-api.rhyoliteprime.com/api/v1/auth/customer/change-pin",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "phoneNumber": "$local_phone",
+          "oldPin": "${to_string(account_old_pin)}",
+          "newPin": "${to_string(account_new_pin)}"
+        },
+        "timeout": "10s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "change_pin_response": "$.body",
+        "change_pin_message": "$.body.message"
+      },
+      "on_error": "change_pin_transport_error",
+      "next": "change_pin_result"
+    },
+    {
+      "id": "change_pin_result",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(change_pin_message, \"Your PIN could not be changed at the moment. Please try again.\")}",
+        "action": "change_pin",
+        "api_success": "${coalesce(change_pin_response.success, false)}"
+      }
+    },
+    {
+      "id": "change_pin_transport_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(error.data.body.message, \"Dear customer, the PIN change service is temporarily unavailable. Please try again in a few moments.\")}",
+        "success": false,
+        "action": "change_pin",
+        "error_code": "${coalesce(error.code, \"HTTP_ERROR\")}",
+        "error_detail": "${coalesce(error.message, \"Network unreachable\")}",
+        "response_body": "$error.data.body"
       }
     },
     {
