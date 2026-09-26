@@ -80,6 +80,16 @@ To deploy the DSL inside an existing C++ API instead of running `sapoc` — link
 state-store and transport options, and a runnable reference service:
 see [INTEGRATING.md](INTEGRATING.md) and [`examples/drogon`](../examples/drogon).
 
+## GitHub Actions integration bundle
+
+The `Build Sapo Engine` workflow runs on pushes, pull requests, and manual dispatches. It uses the
+Drogon-oriented Release options above, installs the CMake package and headers into a clean
+`sapo-dist/` tree, and uploads `sapo-dist.zip` directly as a single-file workflow artifact (without
+wrapping it in another ZIP). Download it from the run's **Artifacts** section and extract it once to
+use the package with a host application. Before uploading, the workflow smoke-tests
+`find_package(SapoEngine)` and the `Sapo::core` target. It builds in Ubuntu
+24.04 and keeps its generated install tree outside the checked-in `sapo-dist/` snapshot.
+
 ## Notes
 
 - **cpr version is pinned by the vendored tree** (`src/third_party/cpr`, 1.10.5), so builds are

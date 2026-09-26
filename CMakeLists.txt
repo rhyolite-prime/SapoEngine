@@ -59,6 +59,7 @@ endif()
 
 add_library(sapo_core STATIC ${SAPO_CORE_SOURCES})
 add_library(Sapo::core ALIAS sapo_core)
+set_target_properties(sapo_core PROPERTIES EXPORT_NAME core)
 target_include_directories(sapo_core
                            PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
                                   $<INSTALL_INTERFACE:include/sapo>)
@@ -165,8 +166,10 @@ install(EXPORT SapoEngineTargets
 write_basic_package_version_file(
         ${CMAKE_CURRENT_BINARY_DIR}/SapoEngineConfigVersion.cmake
         COMPATIBILITY SameMajorVersion)
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/SapoEngineConfig.cmake
-     "include(\"\${CMAKE_CURRENT_LIST_DIR}/SapoEngineTargets.cmake\")\n")
+configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/SapoEngineConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/SapoEngineConfig.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SapoEngine)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SapoEngineConfig.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/SapoEngineConfigVersion.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SapoEngine)
