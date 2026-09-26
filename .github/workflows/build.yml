@@ -2,25 +2,40 @@ name: Build Sapo Engine
 
 on:
   push:
+    branches: [ master, main, dev ]
+    tags:
+      - 'v*'
+      - '[0-9]*'
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   build:
-    name: Build and package (Ubuntu 24.04)
-    runs-on: ubuntu-24.04
+    name: Build and package (Ubuntu 22.04)
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
+
+      - name: Install Toolchain (GCC 13) and Dependencies
+        run: |
+          set -euo pipefail
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+          sudo apt-get update
+          sudo apt-get install -y gcc-13 g++-13 libjsoncpp-dev uuid-dev \
+            openssl libssl-dev zlib1g-dev libhiredis-dev
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 --slave /usr/bin/g++ g++ /usr/bin/g++-13
 
       - name: Configure Release build
         run: >-
           cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_CXX_COMPILER=g++-13
           -DSAPO_ENABLE_CPR=OFF
           -DSAPO_ENABLE_REDIS=ON
           -DSAPO_BUILD_TESTS=OFF
@@ -52,6 +67,7 @@ jobs:
           int main() { return 0; }
           EOF
           cmake -S "$RUNNER_TEMP/sapo-consumer" -B "$RUNNER_TEMP/sapo-consumer-build" \
+            -DCMAKE_CXX_COMPILER=g++-13 \
             -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/sapo-package/sapo-dist"
           cmake --build "$RUNNER_TEMP/sapo-consumer-build" --parallel "$(nproc)"
 
@@ -61,10 +77,43 @@ jobs:
           cd "$RUNNER_TEMP/sapo-package"
           zip -qr "$GITHUB_WORKSPACE/sapo-dist.zip" sapo-dist
 
-      - name: Upload integration bundle
-        uses: actions/upload-artifact@v7
+      - name: Upload integration bundle artifact
+        uses: actions/upload-artifact@v4
         with:
+          name: sapo-dist
           path: sapo-dist.zip
-          archive: false
           if-no-files-found: error
           retention-days: 30
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push OCI Package to GHCR
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -euo pipefail
+
+          # Normalize tag version (e.g., refs/tags/v0.4.0 -> 0.4.0)
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="latest"
+          fi
+
+          IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/sapo-engine:${VERSION}"
+
+          echo "Publishing SapoEngine artifact to ${IMAGE_NAME}..."
+
+          # Build minimal scratch image wrapping the install tree
+          cat <<'EOF' > Dockerfile.ghcr
+          FROM scratch
+          COPY sapo-dist/ /
+          EOF
+
+          docker build -t "$IMAGE_NAME" -f Dockerfile.ghcr "$RUNNER_TEMP/sapo-package"
+          docker push "$IMAGE_NAME"
