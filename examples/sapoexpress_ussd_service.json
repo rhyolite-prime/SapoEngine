@@ -1,0 +1,1057 @@
+{
+  "name": "examples.sapoexpress_ussd_service",
+  "version": "1.0",
+  "description": "SapoExpress USSD menu flow for payments, vouchers, enterprise services, TL Banking, and account support.",
+  "defaults": {
+    "direct_receive_money_url": "https://api.example.test/v1/payments/direct-receive-money"
+  },
+  "nodes": [
+    {
+      "id": "main_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Welcome to SapoExpress",
+      "await_input": true,
+      "input_variable": "main_choice",
+      "prompt_config": {
+        "message": "Welcome to SapoExpress\\n1. Pay for Goods and Services\\n2. Payment Approvals\\n3. Utilities and Vouchers\\n4. Enterprise\\n5. My Account\\n6. TL Banking\\n7. Help and Support",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_main"
+    },
+    {
+      "id": "route_main",
+      "type": "choice",
+      "expression": "$main_choice",
+      "cases": {
+        "1": "pay_goods",
+        "2": "payment_approvals",
+        "3": "utilities_menu",
+        "4": "enterprise_menu",
+        "5": "account_support_menu",
+        "6": "tl_banking_menu",
+        "7": "help_support"
+      },
+      "default": "main_menu"
+    },
+    {
+      "id": "pay_goods",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Pay for Goods and Services is currently unavailable.",
+        "action": "pay_goods"
+      }
+    },
+    {
+      "id": "payment_approvals",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "You have no pending payment approvals.",
+        "action": "payment_approvals"
+      }
+    },
+    {
+      "id": "help_support",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "For help, contact SapoExpress customer support.",
+        "action": "help_support"
+      }
+    },
+    {
+      "id": "utilities_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Utilities & Vouchers",
+      "await_input": true,
+      "input_variable": "utilities_choice",
+      "prompt_config": {
+        "message": "Utilities & Vouchers\\n1. Utilities\\n2. WAEC eVoucher\\n3. MagmaNet Internet Voucher\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_utilities"
+    },
+    {
+      "id": "route_utilities",
+      "type": "choice",
+      "expression": "$utilities_choice",
+      "cases": {
+        "#": "main_menu",
+        "1": "utilities_placeholder",
+        "2": "waec_placeholder",
+        "3": "magma_menu"
+      },
+      "default": "utilities_menu"
+    },
+    {
+      "id": "utilities_placeholder",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Utilities are currently unavailable.",
+        "action": "utilities"
+      }
+    },
+    {
+      "id": "waec_placeholder",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "WAEC eVoucher is currently unavailable.",
+        "action": "waec_voucher"
+      }
+    },
+    {
+      "id": "magma_menu",
+      "type": "action",
+      "capability": "",
+      "label": "MagmaNet Internet Voucher",
+      "await_input": true,
+      "input_variable": "magma_choice",
+      "prompt_config": {
+        "message": "MagmaNet Internet Voucher\\n1. Buy Voucher\\n2. Redeem Voucher\\n3. Check Balance or Data\\n4. Share Voucher\\n5. Statement\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_magma"
+    },
+    {
+      "id": "route_magma",
+      "type": "choice",
+      "expression": "$magma_choice",
+      "cases": {
+        "#": "utilities_menu",
+        "1": "plan_type_menu",
+        "2": "redeem_code",
+        "3": "magma_balance",
+        "4": "share_code",
+        "5": "statement_menu"
+      },
+      "default": "magma_menu"
+    },
+    {
+      "id": "plan_type_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Buy Internet Voucher",
+      "await_input": true,
+      "input_variable": "plan_type",
+      "prompt_config": {
+        "message": "Buy Internet Voucher\\n1. Limited Plan\\n2. Unlimited Plan\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_plan_type"
+    },
+    {
+      "id": "route_plan_type",
+      "type": "choice",
+      "expression": "$plan_type",
+      "cases": {
+        "#": "magma_menu",
+        "1": "limited_plan_menu",
+        "2": "unlimited_plan_menu"
+      },
+      "default": "plan_type_menu"
+    },
+    {
+      "id": "limited_plan_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Buy a Limited Plan",
+      "await_input": true,
+      "input_variable": "plan_choice",
+      "prompt_config": {
+        "message": "Buy a Limited Plan\\n1. 1GB (GHS 5)\\n2. 2GB (GHS 10)\\n3. 3GB (GHS 14)\\n4. 6GB (GHS 27)\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_limited"
+    },
+    {
+      "id": "route_limited",
+      "type": "choice",
+      "expression": "$plan_choice",
+      "cases": {
+        "#": "plan_type_menu",
+        "1": "set_limited_1",
+        "2": "set_limited_2",
+        "3": "set_limited_3",
+        "4": "set_limited_4"
+      },
+      "default": "limited_plan_menu"
+    },
+    {
+      "id": "set_limited_1",
+      "type": "noop",
+      "assign": {
+        "voucher_plan": "1GB",
+        "voucher_amount": 5
+      },
+      "next": "purchase_options"
+    },
+    {
+      "id": "set_limited_2",
+      "type": "noop",
+      "assign": {
+        "voucher_plan": "2GB",
+        "voucher_amount": 10
+      },
+      "next": "purchase_options"
+    },
+    {
+      "id": "set_limited_3",
+      "type": "noop",
+      "assign": {
+        "voucher_plan": "3GB",
+        "voucher_amount": 14
+      },
+      "next": "purchase_options"
+    },
+    {
+      "id": "set_limited_4",
+      "type": "noop",
+      "assign": {
+        "voucher_plan": "6GB",
+        "voucher_amount": 27
+      },
+      "next": "purchase_options"
+    },
+    {
+      "id": "unlimited_plan_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Buy an Unlimited Plan",
+      "await_input": true,
+      "input_variable": "plan_choice",
+      "prompt_config": {
+        "message": "Buy an Unlimited Plan\\n1. Weekly (GHS 34)\\n2. Monthly (GHS 151)\\n3. 2 Months (GHS 296)\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_unlimited"
+    },
+    {
+      "id": "route_unlimited",
+      "type": "choice",
+      "expression": "$plan_choice",
+      "cases": {
+        "#": "plan_type_menu",
+        "1": "set_unlimited_1",
+        "2": "set_unlimited_2",
+        "3": "set_unlimited_3"
+      },
+      "default": "unlimited_plan_menu"
+    },
+    {
+      "id": "set_unlimited_1",
+      "type": "noop",
+      "assign": {
+        "voucher_plan": "Weekly",
+        "voucher_amount": 34
+      },
+      "next": "purchase_options"
+    },
+    {
+      "id": "set_unlimited_2",
+      "type": "noop",
+      "assign": {
+        "voucher_plan": "Monthly",
+        "voucher_amount": 151
+      },
+      "next": "purchase_options"
+    },
+    {
+      "id": "set_unlimited_3",
+      "type": "noop",
+      "assign": {
+        "voucher_plan": "2 Months",
+        "voucher_amount": 296
+      },
+      "next": "purchase_options"
+    },
+    {
+      "id": "purchase_options",
+      "type": "action",
+      "capability": "",
+      "label": "Purchase Options",
+      "await_input": true,
+      "input_variable": "purchase_choice",
+      "prompt_config": {
+        "message": "Purchase Options\\n1. Buy for Myself\\n2. Buy for Someone Else\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_purchase"
+    },
+    {
+      "id": "route_purchase",
+      "type": "choice",
+      "expression": "$purchase_choice",
+      "cases": {
+        "#": "plan_type_menu",
+        "1": "set_self_beneficiary",
+        "2": "beneficiary_phone"
+      },
+      "default": "purchase_options"
+    },
+    {
+      "id": "set_self_beneficiary",
+      "type": "noop",
+      "assign": {
+        "beneficiary_phone": "${coalesce(msisdn, phoneNo)}"
+      },
+      "next": "direct_receive_money"
+    },
+    {
+      "id": "beneficiary_phone",
+      "type": "action",
+      "capability": "",
+      "label": "Beneficiary phone",
+      "await_input": true,
+      "input_variable": "beneficiary_phone",
+      "prompt_config": {
+        "message": "Enter beneficiary phone number:",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^(0[0-9]{9}|233[0-9]{9}|[+]233[0-9]{9})$')",
+        "timeout": "2m"
+      },
+      "next": "direct_receive_money"
+    },
+    {
+      "id": "direct_receive_money",
+      "type": "command",
+      "command": "http.post",
+      "label": "Initialize direct receive money",
+      "http_request": {
+        "url": "$direct_receive_money_url",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "payerMsisdn": "${coalesce(msisdn, phoneNo)}",
+          "beneficiaryMsisdn": "$beneficiary_phone",
+          "amount": "$voucher_amount",
+          "description": "MagmaNet ${voucher_plan} Internet Voucher",
+          "product": "magmanet",
+          "plan": "$voucher_plan"
+        },
+        "timeout": "15s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "payment_response": "$.body",
+        "payment_message": "$.body.message"
+      },
+      "on_error": "purchase_error",
+      "next": "purchase_success"
+    },
+    {
+      "id": "purchase_success",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "${coalesce(payment_message, \"Payment initiated. Approve the prompt on your phone.\")}",
+        "action": "buy_magmanet_voucher"
+      }
+    },
+    {
+      "id": "purchase_error",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Unable to initialize payment. Please try again later.",
+        "action": "buy_magmanet_voucher"
+      }
+    },
+    {
+      "id": "redeem_code",
+      "type": "action",
+      "capability": "",
+      "label": "Redeem voucher",
+      "await_input": true,
+      "input_variable": "voucher_code",
+      "prompt_config": {
+        "message": "Enter your MagmaNet voucher code:",
+        "interaction_type": "input",
+        "input_validation": "len(input) > 0",
+        "timeout": "2m"
+      },
+      "next": "redeem_done"
+    },
+    {
+      "id": "redeem_done",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Voucher redemption request submitted.",
+        "action": "redeem_voucher"
+      }
+    },
+    {
+      "id": "magma_balance",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Your MagmaNet balance request has been submitted.",
+        "action": "check_magmanet_balance"
+      }
+    },
+    {
+      "id": "share_code",
+      "type": "action",
+      "capability": "",
+      "label": "Share voucher",
+      "await_input": true,
+      "input_variable": "voucher_code",
+      "prompt_config": {
+        "message": "Enter voucher code to share:",
+        "interaction_type": "input",
+        "input_validation": "len(input) > 0",
+        "timeout": "2m"
+      },
+      "next": "share_phone"
+    },
+    {
+      "id": "share_phone",
+      "type": "action",
+      "capability": "",
+      "label": "Share recipient",
+      "await_input": true,
+      "input_variable": "share_phone",
+      "prompt_config": {
+        "message": "Enter recipient phone number:",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^(0[0-9]{9}|233[0-9]{9}|[+]233[0-9]{9})$')",
+        "timeout": "2m"
+      },
+      "next": "share_done"
+    },
+    {
+      "id": "share_done",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Voucher shared successfully.",
+        "action": "share_voucher"
+      }
+    },
+    {
+      "id": "statement_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Statement",
+      "await_input": true,
+      "input_variable": "statement_choice",
+      "prompt_config": {
+        "message": "Statement\\n1. Mini Statement\\n2. Full Statement\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_statement"
+    },
+    {
+      "id": "route_statement",
+      "type": "choice",
+      "expression": "$statement_choice",
+      "cases": {
+        "#": "magma_menu",
+        "1": "mini_statement",
+        "2": "full_statement"
+      },
+      "default": "statement_menu"
+    },
+    {
+      "id": "mini_statement",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Your mini statement request has been submitted.",
+        "action": "mini_statement"
+      }
+    },
+    {
+      "id": "full_statement",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Your full statement request has been submitted.",
+        "action": "full_statement"
+      }
+    },
+    {
+      "id": "enterprise_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Enterprise",
+      "await_input": true,
+      "input_variable": "enterprise_choice",
+      "prompt_config": {
+        "message": "Enterprise\\n1. Shortcode Express\\n2. Business Desk 720 ERP\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_enterprise"
+    },
+    {
+      "id": "route_enterprise",
+      "type": "choice",
+      "expression": "$enterprise_choice",
+      "cases": {
+        "#": "main_menu",
+        "1": "shortcode_menu",
+        "2": "erp_menu"
+      },
+      "default": "enterprise_menu"
+    },
+    {
+      "id": "shortcode_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Shortcode Express",
+      "await_input": true,
+      "input_variable": "shortcode_choice",
+      "prompt_config": {
+        "message": "Shortcode Express\\n1. Apply for Shortcode\\n2. Renew Shortcode\\n3. Buy Session Credits\\n4. View Usage & Analytics\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_shortcode"
+    },
+    {
+      "id": "route_shortcode",
+      "type": "choice",
+      "expression": "$shortcode_choice",
+      "cases": {
+        "#": "enterprise_menu",
+        "1": "apply_shortcode",
+        "2": "renew_shortcode",
+        "3": "buy_credits",
+        "4": "usage_analytics"
+      },
+      "default": "shortcode_menu"
+    },
+    {
+      "id": "apply_shortcode",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Shortcode application started.",
+        "action": "apply_shortcode"
+      }
+    },
+    {
+      "id": "renew_shortcode",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Shortcode renewal started.",
+        "action": "renew_shortcode"
+      }
+    },
+    {
+      "id": "buy_credits",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Session credit purchase started.",
+        "action": "buy_credits"
+      }
+    },
+    {
+      "id": "usage_analytics",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Usage and analytics request submitted.",
+        "action": "usage_analytics"
+      }
+    },
+    {
+      "id": "erp_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Business Desk 720 ERP",
+      "await_input": true,
+      "input_variable": "erp_choice",
+      "prompt_config": {
+        "message": "Business Desk 720 ERP\\n1. Register Business\\n2. Renew Subscription\\n3. View Subscription Details\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_erp"
+    },
+    {
+      "id": "route_erp",
+      "type": "choice",
+      "expression": "$erp_choice",
+      "cases": {
+        "#": "enterprise_menu",
+        "1": "register_business",
+        "2": "renew_subscription",
+        "3": "subscription_details"
+      },
+      "default": "erp_menu"
+    },
+    {
+      "id": "register_business",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Business registration started.",
+        "action": "register_business"
+      }
+    },
+    {
+      "id": "renew_subscription",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Subscription renewal started.",
+        "action": "renew_subscription"
+      }
+    },
+    {
+      "id": "subscription_details",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Subscription details request submitted.",
+        "action": "subscription_details"
+      }
+    },
+    {
+      "id": "tl_banking_menu",
+      "type": "action",
+      "capability": "",
+      "label": "TL Banking",
+      "await_input": true,
+      "input_variable": "tl_choice",
+      "prompt_config": {
+        "message": "TL Banking\\n1. Accounts & Enquiries\\n2. Deposits & Withdrawals\\n3. Loans & Credit\\n4. Transfers & Payments\\n5. Agents\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_tl"
+    },
+    {
+      "id": "route_tl",
+      "type": "choice",
+      "expression": "$tl_choice",
+      "cases": {
+        "#": "main_menu",
+        "1": "accounts_menu",
+        "2": "deposits_menu",
+        "3": "loans_menu",
+        "4": "transfers_menu",
+        "5": "agents"
+      },
+      "default": "tl_banking_menu"
+    },
+    {
+      "id": "agents",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Agent services are currently unavailable.",
+        "action": "agents"
+      }
+    },
+    {
+      "id": "accounts_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Accounts & Enquiries",
+      "await_input": true,
+      "input_variable": "accounts_choice",
+      "prompt_config": {
+        "message": "Accounts & Enquiries\\n1. Open New Account\\n2. Check Balance\\n3. Mini Statement\\n4. Full Statement\\n5. Freeze / Unfreeze Account\\n6. Link External Wallet (MoMo)\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_accounts"
+    },
+    {
+      "id": "route_accounts",
+      "type": "choice",
+      "expression": "$accounts_choice",
+      "cases": {
+        "#": "tl_banking_menu",
+        "1": "account_type_menu",
+        "2": "bank_balance",
+        "3": "bank_mini",
+        "4": "bank_full",
+        "5": "freeze_account",
+        "6": "link_wallet"
+      },
+      "default": "accounts_menu"
+    },
+    {
+      "id": "account_type_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Select Account Type",
+      "await_input": true,
+      "input_variable": "account_type",
+      "prompt_config": {
+        "message": "Select Account Type\\n1. Susu\\n2. Credit Union\\n3. Savings & Loans\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_account_type"
+    },
+    {
+      "id": "route_account_type",
+      "type": "choice",
+      "expression": "$account_type",
+      "cases": {
+        "#": "accounts_menu",
+        "1": "open_susu",
+        "2": "open_credit_union",
+        "3": "open_savings_loans"
+      },
+      "default": "account_type_menu"
+    },
+    {
+      "id": "open_susu",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Susu account application started.",
+        "action": "open_susu"
+      }
+    },
+    {
+      "id": "open_credit_union",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Credit Union account application started.",
+        "action": "open_credit_union"
+      }
+    },
+    {
+      "id": "open_savings_loans",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Savings & Loans account application started.",
+        "action": "open_savings_loans"
+      }
+    },
+    {
+      "id": "bank_balance",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Balance enquiry submitted.",
+        "action": "bank_balance"
+      }
+    },
+    {
+      "id": "bank_mini",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Mini statement requested.",
+        "action": "bank_mini"
+      }
+    },
+    {
+      "id": "bank_full",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Full statement requested.",
+        "action": "bank_full"
+      }
+    },
+    {
+      "id": "freeze_account",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Freeze / unfreeze request started.",
+        "action": "freeze_account"
+      }
+    },
+    {
+      "id": "link_wallet",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "External wallet linking started.",
+        "action": "link_wallet"
+      }
+    },
+    {
+      "id": "deposits_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Deposits & Withdrawals",
+      "await_input": true,
+      "input_variable": "deposit_choice",
+      "prompt_config": {
+        "message": "Deposits & Withdrawals\\n1. Deposit to Account\\n2. Withdraw from Account\\n3. Agent Cash-In\\n4. Agent Cash-Out\\n5. Reverse Transaction\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_deposits"
+    },
+    {
+      "id": "route_deposits",
+      "type": "choice",
+      "expression": "$deposit_choice",
+      "cases": {
+        "#": "tl_banking_menu",
+        "1": "deposit_account",
+        "2": "withdraw_account",
+        "3": "agent_cash_in",
+        "4": "agent_cash_out",
+        "5": "reverse_transaction"
+      },
+      "default": "deposits_menu"
+    },
+    {
+      "id": "deposit_account",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Deposit request started.",
+        "action": "deposit_account"
+      }
+    },
+    {
+      "id": "withdraw_account",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Withdrawal request started.",
+        "action": "withdraw_account"
+      }
+    },
+    {
+      "id": "agent_cash_in",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Agent cash-in started.",
+        "action": "agent_cash_in"
+      }
+    },
+    {
+      "id": "agent_cash_out",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Agent cash-out started.",
+        "action": "agent_cash_out"
+      }
+    },
+    {
+      "id": "reverse_transaction",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Transaction reversal request started.",
+        "action": "reverse_transaction"
+      }
+    },
+    {
+      "id": "loans_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Loans & Credit",
+      "await_input": true,
+      "input_variable": "loan_choice",
+      "prompt_config": {
+        "message": "Loans & Credit\\n1. Apply for Loan\\n2. Repay Loan\\n3. View Loan Schedule\\n4. Default Tracking\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_loans"
+    },
+    {
+      "id": "route_loans",
+      "type": "choice",
+      "expression": "$loan_choice",
+      "cases": {
+        "#": "tl_banking_menu",
+        "1": "apply_loan",
+        "2": "repay_loan",
+        "3": "loan_schedule",
+        "4": "default_tracking"
+      },
+      "default": "loans_menu"
+    },
+    {
+      "id": "apply_loan",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Loan application started.",
+        "action": "apply_loan"
+      }
+    },
+    {
+      "id": "repay_loan",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Loan repayment started.",
+        "action": "repay_loan"
+      }
+    },
+    {
+      "id": "loan_schedule",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Loan schedule requested.",
+        "action": "loan_schedule"
+      }
+    },
+    {
+      "id": "default_tracking",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Default tracking requested.",
+        "action": "default_tracking"
+      }
+    },
+    {
+      "id": "transfers_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Transfers & Payments",
+      "await_input": true,
+      "input_variable": "transfer_choice",
+      "prompt_config": {
+        "message": "Transfers & Payments\\n1. Within My Institution\\n2. To Another Institution\\n3. Between My Accounts\\n4. Transaction History\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_transfers"
+    },
+    {
+      "id": "route_transfers",
+      "type": "choice",
+      "expression": "$transfer_choice",
+      "cases": {
+        "#": "tl_banking_menu",
+        "1": "within_institution",
+        "2": "another_institution",
+        "3": "between_accounts",
+        "4": "transaction_history"
+      },
+      "default": "transfers_menu"
+    },
+    {
+      "id": "within_institution",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Institution transfer started.",
+        "action": "within_institution"
+      }
+    },
+    {
+      "id": "another_institution",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Inter-institution transfer started.",
+        "action": "another_institution"
+      }
+    },
+    {
+      "id": "between_accounts",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Transfer between accounts started.",
+        "action": "between_accounts"
+      }
+    },
+    {
+      "id": "transaction_history",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Transaction history requested.",
+        "action": "transaction_history"
+      }
+    },
+    {
+      "id": "account_support_menu",
+      "type": "action",
+      "capability": "",
+      "label": "My Account",
+      "await_input": true,
+      "input_variable": "account_choice",
+      "prompt_config": {
+        "message": "My Account\\n1. Authenticator\\n2. Opt-In for Weekly News\\n#. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^(#|[0-9]+)$')",
+        "timeout": "2m"
+      },
+      "next": "route_account"
+    },
+    {
+      "id": "route_account",
+      "type": "choice",
+      "expression": "$account_choice",
+      "cases": {
+        "#": "main_menu",
+        "1": "authenticator",
+        "2": "weekly_news"
+      },
+      "default": "account_support_menu"
+    },
+    {
+      "id": "authenticator",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Authenticator setup started.",
+        "action": "authenticator"
+      }
+    },
+    {
+      "id": "weekly_news",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "You have opted in for weekly news.",
+        "action": "weekly_news"
+      }
+    }
+  ]
+}
