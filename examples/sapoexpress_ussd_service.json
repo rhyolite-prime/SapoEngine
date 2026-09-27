@@ -14,7 +14,7 @@
       "await_input": true,
       "input_variable": "main_choice",
       "prompt_config": {
-        "message": "Welcome to SapoExpress\\n1. Pay for Goods and Services\\n2. Payment Approvals\\n3. Utilities and Vouchers\\n4. Enterprise\\n5. My Account\\n6. TL Banking\\n7. Help and Support",
+        "message": "Welcome to SapoExpress\n1. Pay for Goods and Services\n2. Payment Approvals\n3. Utilities and Vouchers\n4. Enterprise\n5. My Account\n6. TL Banking\n7. Help and Support",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -71,7 +71,7 @@
       "await_input": true,
       "input_variable": "utilities_choice",
       "prompt_config": {
-        "message": "Utilities & Vouchers\\n1. Utilities\\n2. WAEC eVoucher\\n3. MagmaNet Internet Voucher\\n#. Back",
+        "message": "Utilities & Vouchers\n1. Utilities\n2. WAEC eVoucher\n3. MagmaNet Internet Voucher\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -116,7 +116,7 @@
       "await_input": true,
       "input_variable": "magma_choice",
       "prompt_config": {
-        "message": "MagmaNet Internet Voucher\\n1. Buy Voucher\\n2. Redeem Voucher\\n3. Check Balance or Data\\n4. Share Voucher\\n5. Statement\\n#. Back",
+        "message": "MagmaNet Internet Voucher\n1. Buy Voucher\n2. Redeem Voucher\n3. Check Balance or Data\n4. Share Voucher\n5. Statement\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -145,7 +145,7 @@
       "await_input": true,
       "input_variable": "plan_type",
       "prompt_config": {
-        "message": "Buy Internet Voucher\\n1. Limited Plan\\n2. Unlimited Plan\\n#. Back",
+        "message": "Buy Internet Voucher\n1. Limited Plan\n2. Unlimited Plan\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -171,7 +171,7 @@
       "await_input": true,
       "input_variable": "plan_choice",
       "prompt_config": {
-        "message": "Buy a Limited Plan\\n1. 1GB (GHS 5)\\n2. 2GB (GHS 10)\\n3. 3GB (GHS 14)\\n4. 6GB (GHS 27)\\n#. Back",
+        "message": "Buy a Limited Plan\n1. 1GB (GHS 5)\n2. 2GB (GHS 10)\n3. 3GB (GHS 14)\n4. 6GB (GHS 27)\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -235,7 +235,7 @@
       "await_input": true,
       "input_variable": "plan_choice",
       "prompt_config": {
-        "message": "Buy an Unlimited Plan\\n1. Weekly (GHS 34)\\n2. Monthly (GHS 151)\\n3. 2 Months (GHS 296)\\n#. Back",
+        "message": "Buy an Unlimited Plan\n1. Weekly (GHS 34)\n2. Monthly (GHS 151)\n3. 2 Months (GHS 296)\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -289,7 +289,7 @@
       "await_input": true,
       "input_variable": "purchase_choice",
       "prompt_config": {
-        "message": "Purchase Options\\n1. Buy for Myself\\n2. Buy for Someone Else\\n#. Back",
+        "message": "Purchase Options\n1. Buy for Myself\n2. Buy for Someone Else\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -460,7 +460,7 @@
       "await_input": true,
       "input_variable": "statement_choice",
       "prompt_config": {
-        "message": "Statement\\n1. Mini Statement\\n2. Full Statement\\n#. Back",
+        "message": "Statement\n1. Mini Statement\n2. Full Statement\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -504,7 +504,7 @@
       "await_input": true,
       "input_variable": "enterprise_choice",
       "prompt_config": {
-        "message": "Enterprise\\n1. Shortcode Express\\n2. Business Desk 720 ERP\\n#. Back",
+        "message": "Enterprise\n1. Shortcode Express\n2. Business Desk 720 ERP\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -530,7 +530,7 @@
       "await_input": true,
       "input_variable": "shortcode_choice",
       "prompt_config": {
-        "message": "Shortcode Express\\n1. Apply for Shortcode\\n2. Renew Shortcode\\n3. Buy Session Credits\\n4. View Usage & Analytics\\n#. Back",
+        "message": "Shortcode Express\n1. Apply for Shortcode\n2. Renew Shortcode\n3. Buy Session Credits\n4. View Usage & Analytics\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -594,7 +594,7 @@
       "await_input": true,
       "input_variable": "erp_choice",
       "prompt_config": {
-        "message": "Business Desk 720 ERP\\n1. Register Business\\n2. Renew Subscription\\n3. View Subscription Details\\n#. Back",
+        "message": "Business Desk 720 ERP\n1. Register Business\n2. Renew Subscription\n3. View Subscription Details\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -648,7 +648,7 @@
       "await_input": true,
       "input_variable": "tl_choice",
       "prompt_config": {
-        "message": "TL Banking\\n1. Accounts & Enquiries\\n2. Deposits & Withdrawals\\n3. Loans & Credit\\n4. Transfers & Payments\\n5. Agents\\n#. Back",
+        "message": "TL Banking\n1. Accounts & Enquiries\n2. Deposits & Withdrawals\n3. Loans & Credit\n4. Transfers & Payments\n5. Agents\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -686,7 +686,7 @@
       "await_input": true,
       "input_variable": "accounts_choice",
       "prompt_config": {
-        "message": "Accounts & Enquiries\\n1. Open New Account\\n2. Check Balance\\n3. Mini Statement\\n4. Full Statement\\n5. Freeze / Unfreeze Account\\n6. Link External Wallet (MoMo)\\n#. Back",
+        "message": "Accounts & Enquiries\n1. Open New Account\n2. Check Balance\n3. Mini Statement\n4. Full Statement\n5. Freeze / Unfreeze Account\n6. Link External Wallet (MoMo)\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -716,7 +716,7 @@
       "await_input": true,
       "input_variable": "account_type",
       "prompt_config": {
-        "message": "Select Account Type\\n1. Susu\\n2. Credit Union\\n3. Savings & Loans\\n#. Back",
+        "message": "Select Account Type\n1. Susu\n2. Credit Union\n3. Savings & Loans\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -815,7 +815,7 @@
       "await_input": true,
       "input_variable": "deposit_choice",
       "prompt_config": {
-        "message": "Deposits & Withdrawals\\n1. Deposit to Account\\n2. Withdraw from Account\\n3. Agent Cash-In\\n4. Agent Cash-Out\\n5. Reverse Transaction\\n#. Back",
+        "message": "Deposits & Withdrawals\n1. Deposit to Account\n2. Withdraw from Account\n3. Agent Cash-In\n4. Agent Cash-Out\n5. Reverse Transaction\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -889,7 +889,7 @@
       "await_input": true,
       "input_variable": "loan_choice",
       "prompt_config": {
-        "message": "Loans & Credit\\n1. Apply for Loan\\n2. Repay Loan\\n3. View Loan Schedule\\n4. Default Tracking\\n#. Back",
+        "message": "Loans & Credit\n1. Apply for Loan\n2. Repay Loan\n3. View Loan Schedule\n4. Default Tracking\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -953,7 +953,7 @@
       "await_input": true,
       "input_variable": "transfer_choice",
       "prompt_config": {
-        "message": "Transfers & Payments\\n1. Within My Institution\\n2. To Another Institution\\n3. Between My Accounts\\n4. Transaction History\\n#. Back",
+        "message": "Transfers & Payments\n1. Within My Institution\n2. To Another Institution\n3. Between My Accounts\n4. Transaction History\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
@@ -1017,7 +1017,7 @@
       "await_input": true,
       "input_variable": "account_choice",
       "prompt_config": {
-        "message": "My Account\\n1. Authenticator\\n2. Opt-In for Weekly News\\n#. Back",
+        "message": "My Account\n1. Authenticator\n2. Opt-In for Weekly News\n#. Back",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^(#|[0-9]+)$')",
         "timeout": "2m"
