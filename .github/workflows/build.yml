@@ -1,4 +1,4 @@
-name: Build Sapo Engine
+name: Build Sapo Engine for Ubuntu 22.x
 
 on:
   push:
