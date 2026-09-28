@@ -14,7 +14,7 @@
       "await_input": true,
       "input_variable": "main_choice",
       "prompt_config": {
-        "message": "Welcome to SapoExpress\n1. Pay a Merchant\n2. Payment Approvals\n3. WAEC Vouchers\n4. Enterprise\n5. My Account\n6. TL Banking\n7. Help and Support",
+        "message": "Welcome to SapoExpress\n1. Pay a Merchant\n2. LM Banking\n3. WAEC Vouchers\n4. Enterprise\n5. My Account\n6. Payment Approvals\n7. Help and support",
         "interaction_type": "menu",
         "input_validation": "matches(input, '^[0-9]+$')",
         "timeout": "2m"
@@ -27,11 +27,11 @@
       "expression": "$main_choice",
       "cases": {
         "1": "pay_goods",
-        "2": "payment_approvals",
+        "2": "tl_banking_menu",
         "3": "waec_menu",
         "4": "enterprise_menu",
         "5": "account_support_menu",
-        "6": "tl_banking_menu",
+        "6": "payment_approvals",
         "7": "help_support"
       },
       "default": "main_menu"
