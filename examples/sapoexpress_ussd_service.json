@@ -28,7 +28,7 @@
       "cases": {
         "1": "pay_goods",
         "2": "payment_approvals",
-        "3": "utilities_menu",
+        "3": "waec_menu",
         "4": "enterprise_menu",
         "5": "account_support_menu",
         "6": "tl_banking_menu",
@@ -64,289 +64,202 @@
       }
     },
     {
-      "id": "utilities_menu",
+      "id": "waec_menu",
       "type": "action",
       "capability": "",
-      "label": "Utilities & Vouchers",
+      "label": "WAEC Vouchers",
       "await_input": true,
-      "input_variable": "utilities_choice",
+      "input_variable": "waec_choice",
       "prompt_config": {
-        "message": "Utilities & Vouchers\n1. Utilities\n2. WAEC eVoucher\n3. MagmaNet Internet Voucher\n0. Back",
+        "message": "WAEC Vouchers:\n1. Buy BECE/WASSCE/NOV DEC Checker\n2. Retrieve Lost Voucher\n3. Become a Wholesaler\n0. Back",
         "interaction_type": "menu",
-        "input_validation": "matches(input, '^[0-9]+$')",
+        "input_validation": "matches(input, '^[0-3]$')",
         "timeout": "2m"
       },
-      "next": "route_utilities"
+      "next": "route_waec"
     },
     {
-      "id": "route_utilities",
+      "id": "route_waec",
       "type": "choice",
-      "expression": "$utilities_choice",
+      "expression": "$waec_choice",
       "cases": {
-        "1": "utilities_placeholder",
-        "2": "waec_placeholder",
-        "3": "magma_menu",
-        "0": "main_menu"
+        "0": "main_menu",
+        "1": "waec_purchase_options",
+        "2": "waec_recovery_transaction",
+        "3": "waec_merchant_name"
       },
-      "default": "utilities_menu"
+      "default": "waec_menu"
     },
     {
-      "id": "utilities_placeholder",
+      "id": "waec_purchase_options",
+      "type": "action",
+      "capability": "",
+      "label": "WAEC Purchase Options",
+      "await_input": true,
+      "input_variable": "waec_purchase_choice",
+      "prompt_config": {
+        "message": "Purchase Options:\n1. Buy for Self\n2. Buy in Bulk (Wholesaler)\n3. Affiliate Reseller (Earn Instantly)\n4. Wholesaler Dashboard\n0. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-4]$')",
+        "timeout": "2m"
+      },
+      "next": "route_waec_purchase"
+    },
+    {
+      "id": "route_waec_purchase",
+      "type": "choice",
+      "expression": "$waec_purchase_choice",
+      "cases": {
+        "0": "waec_menu",
+        "1": "waec_self_exam_menu",
+        "2": "waec_bulk_notice",
+        "3": "waec_affiliate_notice",
+        "4": "waec_dashboard_notice"
+      },
+      "default": "waec_purchase_options"
+    },
+    {
+      "id": "waec_self_exam_menu",
+      "type": "action",
+      "capability": "",
+      "label": "Buy WAEC Voucher for Self",
+      "await_input": true,
+      "input_variable": "waec_exam_choice",
+      "prompt_config": {
+        "message": "Buy for Self:\n1. BECE\n2. WASSCE and NOV DEC\n0. Back",
+        "interaction_type": "menu",
+        "input_validation": "matches(input, '^[0-2]$')",
+        "timeout": "2m"
+      },
+      "next": "route_waec_exam"
+    },
+    {
+      "id": "route_waec_exam",
+      "type": "choice",
+      "expression": "$waec_exam_choice",
+      "cases": {
+        "0": "waec_purchase_options",
+        "1": "waec_bece_selected",
+        "2": "waec_wassce_selected"
+      },
+      "default": "waec_self_exam_menu"
+    },
+    {
+      "id": "waec_bece_selected",
       "type": "terminate",
       "status": "success",
       "output": {
-        "message": "Utilities are currently unavailable.",
-        "action": "utilities"
+        "message": "BECE Result Checker purchase selected.",
+        "action": "buy_waec_voucher",
+        "voucherType": "BECE"
       }
     },
     {
-      "id": "waec_placeholder",
+      "id": "waec_wassce_selected",
       "type": "terminate",
       "status": "success",
       "output": {
-        "message": "WAEC eVoucher is currently unavailable.",
-        "action": "waec_voucher"
+        "message": "WASSCE and NOV DEC Result Checker purchase selected.",
+        "action": "buy_waec_voucher",
+        "voucherType": "WASSCE_NOV_DEC"
       }
     },
     {
-      "id": "magma_menu",
+      "id": "waec_bulk_notice",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "WAEC bulk purchase selected.",
+        "action": "waec_bulk_purchase"
+      }
+    },
+    {
+      "id": "waec_affiliate_notice",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "WAEC Affiliate Reseller selected.",
+        "action": "waec_affiliate_reseller"
+      }
+    },
+    {
+      "id": "waec_dashboard_notice",
+      "type": "terminate",
+      "status": "success",
+      "output": {
+        "message": "Opening Wholesaler Dashboard.",
+        "action": "waec_wholesaler_dashboard"
+      }
+    },
+    {
+      "id": "waec_merchant_name",
       "type": "action",
       "capability": "",
-      "label": "MagmaNet Internet Voucher",
+      "label": "Wholesaler full name",
       "await_input": true,
-      "input_variable": "magma_choice",
+      "input_variable": "merchant_name",
       "prompt_config": {
-        "message": "MagmaNet Internet Voucher\n1. Buy Voucher\n2. Redeem Voucher\n3. Check Balance or Data\n4. Share Voucher\n5. Statement\n0. Back",
-        "interaction_type": "menu",
-        "input_validation": "matches(input, '^[0-9]+$')",
-        "timeout": "2m"
-      },
-      "next": "route_magma"
-    },
-    {
-      "id": "route_magma",
-      "type": "choice",
-      "expression": "$magma_choice",
-      "cases": {
-        "1": "plan_type_menu",
-        "2": "redeem_code",
-        "3": "magma_balance",
-        "4": "share_code",
-        "5": "statement_menu",
-        "0": "utilities_menu"
-      },
-      "default": "magma_menu"
-    },
-    {
-      "id": "plan_type_menu",
-      "type": "action",
-      "capability": "",
-      "label": "Buy Internet Voucher",
-      "await_input": true,
-      "input_variable": "plan_type",
-      "prompt_config": {
-        "message": "Buy Internet Voucher\n1. Limited Plan\n2. Unlimited Plan\n0. Back",
-        "interaction_type": "menu",
-        "input_validation": "matches(input, '^[0-9]+$')",
-        "timeout": "2m"
-      },
-      "next": "route_plan_type"
-    },
-    {
-      "id": "route_plan_type",
-      "type": "choice",
-      "expression": "$plan_type",
-      "cases": {
-        "1": "limited_plan_menu",
-        "2": "unlimited_plan_menu",
-        "0": "magma_menu"
-      },
-      "default": "plan_type_menu"
-    },
-    {
-      "id": "limited_plan_menu",
-      "type": "action",
-      "capability": "",
-      "label": "Buy a Limited Plan",
-      "await_input": true,
-      "input_variable": "plan_choice",
-      "prompt_config": {
-        "message": "Buy a Limited Plan\n1. 1GB (GHS 5)\n2. 2GB (GHS 10)\n3. 3GB (GHS 14)\n4. 6GB (GHS 27)\n0. Back",
-        "interaction_type": "menu",
-        "input_validation": "matches(input, '^[0-9]+$')",
-        "timeout": "2m"
-      },
-      "next": "route_limited"
-    },
-    {
-      "id": "route_limited",
-      "type": "choice",
-      "expression": "$plan_choice",
-      "cases": {
-        "1": "set_limited_1",
-        "2": "set_limited_2",
-        "3": "set_limited_3",
-        "4": "set_limited_4",
-        "0": "plan_type_menu"
-      },
-      "default": "limited_plan_menu"
-    },
-    {
-      "id": "set_limited_1",
-      "type": "noop",
-      "assign": {
-        "voucher_plan": "1GB",
-        "voucher_amount": 5
-      },
-      "next": "purchase_options"
-    },
-    {
-      "id": "set_limited_2",
-      "type": "noop",
-      "assign": {
-        "voucher_plan": "2GB",
-        "voucher_amount": 10
-      },
-      "next": "purchase_options"
-    },
-    {
-      "id": "set_limited_3",
-      "type": "noop",
-      "assign": {
-        "voucher_plan": "3GB",
-        "voucher_amount": 14
-      },
-      "next": "purchase_options"
-    },
-    {
-      "id": "set_limited_4",
-      "type": "noop",
-      "assign": {
-        "voucher_plan": "6GB",
-        "voucher_amount": 27
-      },
-      "next": "purchase_options"
-    },
-    {
-      "id": "unlimited_plan_menu",
-      "type": "action",
-      "capability": "",
-      "label": "Buy an Unlimited Plan",
-      "await_input": true,
-      "input_variable": "plan_choice",
-      "prompt_config": {
-        "message": "Buy an Unlimited Plan\n1. Weekly (GHS 34)\n2. Monthly (GHS 151)\n3. 2 Months (GHS 296)\n0. Back",
-        "interaction_type": "menu",
-        "input_validation": "matches(input, '^[0-9]+$')",
-        "timeout": "2m"
-      },
-      "next": "route_unlimited"
-    },
-    {
-      "id": "route_unlimited",
-      "type": "choice",
-      "expression": "$plan_choice",
-      "cases": {
-        "1": "set_unlimited_1",
-        "2": "set_unlimited_2",
-        "3": "set_unlimited_3",
-        "0": "plan_type_menu"
-      },
-      "default": "unlimited_plan_menu"
-    },
-    {
-      "id": "set_unlimited_1",
-      "type": "noop",
-      "assign": {
-        "voucher_plan": "Weekly",
-        "voucher_amount": 34
-      },
-      "next": "purchase_options"
-    },
-    {
-      "id": "set_unlimited_2",
-      "type": "noop",
-      "assign": {
-        "voucher_plan": "Monthly",
-        "voucher_amount": 151
-      },
-      "next": "purchase_options"
-    },
-    {
-      "id": "set_unlimited_3",
-      "type": "noop",
-      "assign": {
-        "voucher_plan": "2 Months",
-        "voucher_amount": 296
-      },
-      "next": "purchase_options"
-    },
-    {
-      "id": "purchase_options",
-      "type": "action",
-      "capability": "",
-      "label": "Purchase Options",
-      "await_input": true,
-      "input_variable": "purchase_choice",
-      "prompt_config": {
-        "message": "Purchase Options\n1. Buy for Myself\n2. Buy for Someone Else\n0. Back",
-        "interaction_type": "menu",
-        "input_validation": "matches(input, '^[0-9]+$')",
-        "timeout": "2m"
-      },
-      "next": "route_purchase"
-    },
-    {
-      "id": "route_purchase",
-      "type": "choice",
-      "expression": "$purchase_choice",
-      "cases": {
-        "1": "set_self_beneficiary",
-        "2": "beneficiary_phone",
-        "0": "plan_type_menu"
-      },
-      "default": "purchase_options"
-    },
-    {
-      "id": "set_self_beneficiary",
-      "type": "noop",
-      "assign": {
-        "beneficiary_phone": "${coalesce(msisdn, phoneNo)}"
-      },
-      "next": "direct_receive_money"
-    },
-    {
-      "id": "beneficiary_phone",
-      "type": "action",
-      "capability": "",
-      "label": "Beneficiary phone",
-      "await_input": true,
-      "input_variable": "beneficiary_phone",
-      "prompt_config": {
-        "message": "Enter beneficiary phone number:",
+        "message": "Enter your full name:\n0. Back",
         "interaction_type": "input",
-        "input_validation": "matches(input, '^(0[0-9]{9}|233[0-9]{9}|[+]233[0-9]{9})$')",
+        "input_validation": "input == '0' || len(input) >= 2",
         "timeout": "2m"
       },
-      "next": "direct_receive_money"
+      "next": "waec_check_merchant_name_back"
     },
     {
-      "id": "direct_receive_money",
+      "id": "waec_check_merchant_name_back",
+      "type": "if",
+      "condition": "merchant_name == '0'",
+      "then": "waec_menu",
+      "else": "waec_merchant_email"
+    },
+    {
+      "id": "waec_merchant_email",
+      "type": "action",
+      "capability": "",
+      "label": "Wholesaler email",
+      "await_input": true,
+      "input_variable": "merchant_email",
+      "prompt_config": {
+        "message": "Enter your email address:",
+        "interaction_type": "input",
+        "input_validation": "matches(input, '^[^@ ]+@[^@ ]+[.][^@ ]+$')",
+        "timeout": "2m"
+      },
+      "next": "waec_merchant_pin"
+    },
+    {
+      "id": "waec_merchant_pin",
+      "type": "action",
+      "capability": "",
+      "label": "Set wholesaler PIN",
+      "await_input": true,
+      "input_variable": "merchant_pin",
+      "prompt_config": {
+        "message": "Set a 4-digit PIN:",
+        "interaction_type": "pin",
+        "input_validation": "matches(input, '^[0-9]{4}$')",
+        "timeout": "2m"
+      },
+      "next": "waec_create_merchant"
+    },
+    {
+      "id": "waec_create_merchant",
       "type": "command",
       "command": "http.post",
-      "label": "Initialize direct receive money",
+      "label": "Create WAEC merchant",
       "http_request": {
-        "url": "$direct_receive_money_url",
+        "url": "https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/waec/create-merchant",
         "headers": {
+          "ClientId": "TDEXLviWgM",
+          "ClientSecret": "58909b249a4649c49",
           "Content-Type": "application/json"
         },
         "body": {
-          "payerMsisdn": "${coalesce(msisdn, phoneNo)}",
-          "beneficiaryMsisdn": "$beneficiary_phone",
-          "amount": "$voucher_amount",
-          "description": "MagmaNet ${voucher_plan} Internet Voucher",
-          "product": "magmanet",
-          "plan": "$voucher_plan"
+          "merchantName": "$merchant_name",
+          "phoneNumber": "${coalesce(phoneNo, msisdn)}",
+          "email": "$merchant_email",
+          "pin": "$merchant_pin"
         },
         "timeout": "15s"
       },
@@ -356,144 +269,100 @@
         "multiplier": 2
       },
       "output": {
-        "payment_response": "$.body",
-        "payment_message": "$.body.message"
+        "waec_api_response": "$.body",
+        "waec_api_message": "$.body.message"
       },
-      "on_error": "purchase_error",
-      "next": "purchase_success"
+      "on_error": "waec_create_merchant_error",
+      "next": "waec_create_merchant_result"
     },
     {
-      "id": "purchase_success",
+      "id": "waec_create_merchant_result",
       "type": "terminate",
       "status": "success",
       "output": {
-        "message": "${coalesce(payment_message, \"Payment initiated. Approve the prompt on your phone.\")}",
-        "action": "buy_magmanet_voucher"
+        "message": "${coalesce(waec_api_message, \"Your WAEC Merchant registration request has been processed.\")}",
+        "action": "waec_create_merchant"
       }
     },
     {
-      "id": "purchase_error",
+      "id": "waec_create_merchant_error",
       "type": "terminate",
-      "status": "success",
+      "status": "failure",
       "output": {
-        "message": "Unable to initialize payment. Please try again later.",
-        "action": "buy_magmanet_voucher"
+        "message": "${coalesce(error.data.body.message, \"Unable to create your WAEC Merchant account. Please try again later.\")}",
+        "action": "waec_create_merchant"
       }
     },
     {
-      "id": "redeem_code",
+      "id": "waec_recovery_transaction",
       "type": "action",
       "capability": "",
-      "label": "Redeem voucher",
+      "label": "Recover lost WAEC voucher",
       "await_input": true,
-      "input_variable": "voucher_code",
+      "input_variable": "waec_transaction_id",
       "prompt_config": {
-        "message": "Enter your MagmaNet voucher code:",
+        "message": "Enter the transaction ID:\n0. Back",
         "interaction_type": "input",
-        "input_validation": "len(input) > 0",
+        "input_validation": "matches(input, '^(0|[A-Za-z0-9-]{3,64})$')",
         "timeout": "2m"
       },
-      "next": "redeem_done"
+      "next": "waec_check_recovery_back"
     },
     {
-      "id": "redeem_done",
+      "id": "waec_check_recovery_back",
+      "type": "if",
+      "condition": "waec_transaction_id == '0'",
+      "then": "waec_menu",
+      "else": "waec_recover_voucher"
+    },
+    {
+      "id": "waec_recover_voucher",
+      "type": "command",
+      "command": "http.post",
+      "label": "Recover WAEC voucher",
+      "http_request": {
+        "url": "https://ultra-magnus.rhyoliteprime.com/api/v1/third-party/waec/recover-voucher",
+        "headers": {
+          "ClientId": "TDEXLviWgM",
+          "ClientSecret": "58909b249a4649c49",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "phoneNumber": "${coalesce(phoneNo, msisdn)}",
+          "transactionId": "$waec_transaction_id"
+        },
+        "timeout": "15s"
+      },
+      "retry": {
+        "max_attempts": 2,
+        "backoff_ms": 300,
+        "multiplier": 2
+      },
+      "output": {
+        "waec_api_response": "$.body",
+        "waec_api_message": "$.body.message"
+      },
+      "on_error": "waec_recover_voucher_error",
+      "next": "waec_recover_voucher_result"
+    },
+    {
+      "id": "waec_recover_voucher_result",
       "type": "terminate",
       "status": "success",
       "output": {
-        "message": "Voucher redemption request submitted.",
-        "action": "redeem_voucher"
+        "message": "${coalesce(waec_api_message, \"Your voucher recovery request has been processed.\")}",
+        "action": "waec_recover_voucher",
+        "transactionId": "$waec_transaction_id"
       }
     },
     {
-      "id": "magma_balance",
+      "id": "waec_recover_voucher_error",
       "type": "terminate",
-      "status": "success",
+      "status": "failure",
       "output": {
-        "message": "Your MagmaNet balance request has been submitted.",
-        "action": "check_magmanet_balance"
-      }
-    },
-    {
-      "id": "share_code",
-      "type": "action",
-      "capability": "",
-      "label": "Share voucher",
-      "await_input": true,
-      "input_variable": "voucher_code",
-      "prompt_config": {
-        "message": "Enter voucher code to share:",
-        "interaction_type": "input",
-        "input_validation": "len(input) > 0",
-        "timeout": "2m"
-      },
-      "next": "share_phone"
-    },
-    {
-      "id": "share_phone",
-      "type": "action",
-      "capability": "",
-      "label": "Share recipient",
-      "await_input": true,
-      "input_variable": "share_phone",
-      "prompt_config": {
-        "message": "Enter recipient phone number:",
-        "interaction_type": "input",
-        "input_validation": "matches(input, '^(0[0-9]{9}|233[0-9]{9}|[+]233[0-9]{9})$')",
-        "timeout": "2m"
-      },
-      "next": "share_done"
-    },
-    {
-      "id": "share_done",
-      "type": "terminate",
-      "status": "success",
-      "output": {
-        "message": "Voucher shared successfully.",
-        "action": "share_voucher"
-      }
-    },
-    {
-      "id": "statement_menu",
-      "type": "action",
-      "capability": "",
-      "label": "Statement",
-      "await_input": true,
-      "input_variable": "statement_choice",
-      "prompt_config": {
-        "message": "Statement\n1. Mini Statement\n2. Full Statement\n0. Back",
-        "interaction_type": "menu",
-        "input_validation": "matches(input, '^[0-9]+$')",
-        "timeout": "2m"
-      },
-      "next": "route_statement"
-    },
-    {
-      "id": "route_statement",
-      "type": "choice",
-      "expression": "$statement_choice",
-      "cases": {
-        "1": "mini_statement",
-        "2": "full_statement",
-        "0": "magma_menu"
-      },
-      "default": "statement_menu"
-    },
-    {
-      "id": "mini_statement",
-      "type": "terminate",
-      "status": "success",
-      "output": {
-        "message": "Your mini statement request has been submitted.",
-        "action": "mini_statement"
-      }
-    },
-    {
-      "id": "full_statement",
-      "type": "terminate",
-      "status": "success",
-      "output": {
-        "message": "Your full statement request has been submitted.",
-        "action": "full_statement"
+        "message": "${coalesce(error.data.body.message, \"Unable to recover your WAEC voucher. Check the transaction ID and try again.\")}",
+        "action": "waec_recover_voucher",
+        "transactionId": "$waec_transaction_id"
       }
     },
     {
