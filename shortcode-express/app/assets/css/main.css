@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-brand-50: #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #7c3aed;
+  --color-brand-700: #6d28d9;
+  --color-brand-800: #5b21b6;
+  --color-brand-900: #4c1d95;
+  --color-ink-950: #0b0a14;
+  --color-ink-900: #12101f;
+  --color-ink-800: #1b1830;
+  --color-ink-700: #272344;
+}
+
+html, body, #__nuxt {
+  height: 100%;
+}
+
+body {
+  @apply bg-slate-100 text-slate-800 antialiased;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { @apply bg-slate-300 rounded-full border-2 border-solid border-transparent bg-clip-content; }
+::-webkit-scrollbar-thumb:hover { @apply bg-slate-400 bg-clip-content; }
+
+/* --- Vue Flow overrides --- */
+@import "@vue-flow/core/dist/style.css";
+@import "@vue-flow/core/dist/theme-default.css";
+@import "@vue-flow/controls/dist/style.css";
+@import "@vue-flow/minimap/dist/style.css";
+
+.vue-flow__node { cursor: grab; }
+.vue-flow__node.dragging { cursor: grabbing; }
+.vue-flow__edge-path { stroke-width: 2; }
+.vue-flow__handle { width: 11px; height: 11px; border: 2px solid white; }
+.vue-flow__controls {
+  @apply rounded-lg overflow-hidden shadow-lg border border-slate-200;
+}
+.vue-flow__controls-button {
+  @apply bg-white border-b border-slate-100 text-slate-600;
+  width: 28px; height: 28px;
+}
+.vue-flow__controls-button svg { fill: currentColor; }
+.vue-flow__minimap {
+  @apply rounded-lg border border-slate-200 shadow-lg;
+  background: white;
+}
+.vue-flow__edge.selected .vue-flow__edge-path { stroke: #7c3aed; }
+
+.sce-json {
+  @apply font-mono text-[11.5px] leading-relaxed;
+}

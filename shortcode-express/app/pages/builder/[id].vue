@@ -1,0 +1,508 @@
+<script setup lang="ts">
+import { VueFlow, useVueFlow, type Connection, type Edge, type Node, type NodeMouseEvent } from '@vue-flow/core'
+import { Background } from '@vue-flow/background'
+import { Controls } from '@vue-flow/controls'
+import { MiniMap } from '@vue-flow/minimap'
+import { MarkerType } from '@vue-flow/core'
+import {
+  ArrowLeftIcon, DocumentTextIcon, PlayCircleIcon, RocketLaunchIcon,
+  CloudArrowUpIcon, WrenchScrewdriverIcon, CheckIcon, ExclamationTriangleIcon,
+} from '@heroicons/vue/24/outline'
+import type { Build, Flow, FlowNodeData, NodeKind, Release, ValidationIssue } from '~/../shared/types'
+import type { SapoBlueprint } from '~/../shared/utils/sapo'
+import { graphToBlueprint, paletteByKind, uniqueId, validateBlueprint } from '~/../shared/utils/sapo'
+import { blueprintToGraph } from '~/../shared/utils/sapo'
+
+definePageMeta({ middleware: 'auth', layout: 'builder' })
+
+const route = useRoute()
+const flowId = route.params.id as string
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+const flow = ref<Flow | null>(null)
+const flowName = ref('')
+const meta = reactive({ name: '', version: '1.0', defaults: {} as Record<string, unknown> })
+const nodes = ref<Node<import('~/composables/useBuilder').CanvasNodeData>[]>([])
+const edges = ref<Edge[]>([])
+const entryId = ref<string | null>(null)
+const selectedId = ref<string | null>(null)
+const dirty = ref(false)
+const saving = ref(false)
+const lastSavedAt = ref('')
+const issues = ref<ValidationIssue[]>([])
+const builds = ref<Build[]>([])
+const releases = ref<Release[]>([])
+const rightTab = ref<'node' | 'build'>('node')
+const showBlueprint = ref(false)
+const showSimulator = ref(false)
+
+const { screenToFlowCoordinate, fitView } = useVueFlow()
+
+// ---------------------------------------------------------------------------
+// Load
+// ---------------------------------------------------------------------------
+const { data: loaded, error } = await useFetch<Flow>(`/api/flows/${flowId}`)
+if (error.value || !loaded.value) {
+  throw createError({ statusCode: 404, statusMessage: 'Flow not found', fatal: true })
+}
+onMounted(() => {
+  const f = loaded.value!
+  flow.value = f
+  flowName.value = f.name
+  meta.name = f.meta?.name ?? ''
+  meta.version = f.meta?.version ?? '1.0'
+  meta.defaults = { ...(f.meta?.defaults ?? {}) }
+  builds.value = [...f.builds].sort((a, b) => b.number - a.number)
+  releases.value = [...f.releases].sort((a, b) => b.releasedAt.localeCompare(a.releasedAt))
+  const { nodes: cn, edges: ce } = canvasFromGraph(f.graph)
+  nodes.value = cn
+  edges.value = ce
+  entryId.value = f.graph.entryId
+  lastSavedAt.value = f.updatedAt
+  if (cn.length) {
+    selectedId.value = entryId.value ?? cn[0].id
+    setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 150)
+  }
+})
+
+// ---------------------------------------------------------------------------
+// Graph -> model helpers
+// ---------------------------------------------------------------------------
+function graphNow() {
+  return graphFromCanvas(nodes.value, edges.value, entryId.value)
+}
+
+function toBlueprint(): SapoBlueprint {
+  return graphToBlueprint(graphNow(), {
+    name: meta.name || `sce.${flowName.value.toLowerCase().replace(/[^a-z0-9]+/g, '.')}`,
+    description: flow.value?.description ?? '',
+    version: meta.version,
+    defaults: meta.defaults,
+  })
+}
+
+function markDirty() { dirty.value = true }
+
+// ---------------------------------------------------------------------------
+// Mutations
+// ---------------------------------------------------------------------------
+function addNode(kind: NodeKind, position: { x: number; y: number }) {
+  const taken = new Set(nodes.value.map((n) => n.id))
+  const node = newCanvasNode(kind, position, taken)
+  nodes.value.push(node)
+  if (nodes.value.length === 1) entryId.value = node.id
+  selectedId.value = node.id
+  rightTab.value = 'node'
+  markDirty()
+  return node.id
+}
+
+function updateConfig(id: string, patch: Partial<FlowNodeData>) {
+  const n = nodes.value.find((x) => x.id === id)
+  if (!n) return
+  n.data = { ...n.data, config: { ...n.data.config, ...patch } }
+  refreshEdgeLabels()
+  markDirty()
+}
+
+function renameNode(id: string, newIdRaw: string): boolean {
+  const newId = newIdRaw.trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '')
+  if (!newId || (newId !== id && nodes.value.some((n) => n.id === newId))) return false
+  if (newId === id) return true
+  const node = nodes.value.find((n) => n.id === id)
+  if (!node) return false
+  node.id = newId
+  for (const e of edges.value) {
+    if (e.source === id) e.source = newId
+    if (e.target === id) e.target = newId
+  }
+  if (entryId.value === id) entryId.value = newId
+  if (selectedId.value === id) selectedId.value = newId
+  markDirty()
+  return true
+}
+
+function removeNode(id: string) {
+  edges.value = edges.value.filter((e) => e.source !== id && e.target !== id)
+  const i = nodes.value.findIndex((n) => n.id === id)
+  if (i >= 0) nodes.value.splice(i, 1)
+  if (entryId.value === id) entryId.value = nodes.value[0]?.id ?? null
+  if (selectedId.value === id) selectedId.value = null
+  markDirty()
+}
+
+function duplicateNode(id: string) {
+  const src = nodes.value.find((n) => n.id === id)
+  if (!src) return
+  const taken = new Set(nodes.value.map((n) => n.id))
+  const newId = uniqueId(src.id.replace(/_\d+$/, ''), taken)
+  const copy: typeof src = {
+    id: newId,
+    type: 'sapo',
+    position: { x: src.position.x + 60, y: src.position.y + 90 },
+    data: JSON.parse(JSON.stringify(src.data)),
+  }
+  nodes.value.push(copy)
+  selectedId.value = newId
+  markDirty()
+}
+
+function setEntry(id: string) {
+  entryId.value = id
+  markDirty()
+}
+
+function onConnect(conn: Connection) {
+  const handle = conn.sourceHandle ?? 'next'
+  const exists = edges.value.some((e) => e.source === conn.source && e.sourceHandle === handle && e.target === conn.target)
+  if (exists) return
+  const src = nodes.value.find((n) => n.id === conn.source)
+  // structural nodes own their targets: prevent replacing an option/case/branch edge
+  if (src && (handle.startsWith('option:') || handle.startsWith('case:') || handle.startsWith('branch:') || ['body', 'catch', 'finally', 'then', 'else', 'default'].includes(handle))) {
+    edges.value = edges.value.filter((e) => !(e.source === conn.source && e.sourceHandle === handle))
+  }
+  const isErr = handle === 'error' || handle === 'catch'
+  const isOpt = handle.startsWith('option:') || handle.startsWith('case:')
+  const label = edgeLabelFor(src, handle)
+  edges.value.push({
+    id: uid('e'),
+    source: conn.source,
+    target: conn.target,
+    sourceHandle: handle,
+    targetHandle: null,
+    label,
+    style: isErr ? { stroke: '#f43f5e', strokeDasharray: '6 3' } : isOpt ? { stroke: '#7c3aed' } : { stroke: '#94a3b8' },
+    labelStyle: { fill: '#475569', fontSize: '10px' },
+    labelBgStyle: { fill: '#fff' },
+    markerEnd: MarkerType.ArrowClosed,
+  })
+  markDirty()
+}
+
+function edgeLabelFor(src: Node<import('~/composables/useBuilder').CanvasNodeData> | undefined, handle: string): string | undefined {
+  if (!src) return undefined
+  const d = src.data.config
+  if (handle.startsWith('option:')) {
+    const optId = handle.split(':')[1]
+    const i = (d.options ?? []).findIndex((o) => o.id === optId)
+    const opt = (d.options ?? [])[i]
+    return opt ? (opt.value || String(i + 1)) : undefined
+  }
+  if (handle.startsWith('case:')) {
+    const c = (d.cases ?? []).find((x) => x.id === handle.split(':')[1])
+    return c?.value
+  }
+  if (handle === 'then') return 'true'
+  if (handle === 'else') return 'false'
+  if (handle === 'default') return 'default'
+  if (handle === 'body') return 'body'
+  if (handle === 'catch') return 'catch'
+  if (handle === 'finally') return 'finally'
+  if (handle.startsWith('branch:')) return `b${parseInt(handle.split(':')[1], 10) + 1}`
+  if (handle === 'error') return 'error'
+  return undefined
+}
+
+function refreshEdgeLabels() {
+  for (const e of edges.value) {
+    const src = nodes.value.find((n) => n.id === e.source)
+    e.label = edgeLabelFor(src, e.sourceHandle ?? 'next')
+  }
+}
+
+function removeEdgeById(id: string) {
+  edges.value = edges.value.filter((e) => e.id !== id)
+  markDirty()
+}
+
+function importBlueprint(bp: SapoBlueprint) {
+  const graph = blueprintToGraph(bp)
+  const { nodes: cn, edges: ce } = canvasFromGraph(graph)
+  nodes.value = cn
+  edges.value = ce
+  entryId.value = graph.entryId
+  selectedId.value = graph.entryId
+  meta.name = String(bp.name ?? meta.name)
+  meta.version = String(bp.version ?? meta.version)
+  meta.defaults = { ...(bp.defaults ?? {}) }
+  dirty.value = true
+  setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 100)
+}
+
+// ---------------------------------------------------------------------------
+// Persistence & pipeline
+// ---------------------------------------------------------------------------
+async function save() {
+  saving.value = true
+  try {
+    await $fetch(`/api/flows/${flowId}`, {
+      method: 'PUT',
+      body: { name: flowName.value, graph: graphNow(), meta: { name: meta.name, version: meta.version, defaults: meta.defaults } },
+    })
+    dirty.value = false
+    lastSavedAt.value = new Date().toISOString()
+  } finally {
+    saving.value = false
+  }
+}
+
+function validate(): ValidationIssue[] {
+  const v = validateBlueprint(toBlueprint(), graphNow())
+  issues.value = [...v.errors, ...v.warnings]
+  return v.errors
+}
+
+async function build(): Promise<Build> {
+  await save()
+  const buildResult = await $fetch<Build>(`/api/flows/${flowId}/builds`, { method: 'POST', body: {} })
+  if (flow.value) flow.value.builds = [buildResult, ...(flow.value.builds ?? [])]
+  issues.value = [...buildResult.errors, ...buildResult.warnings]
+  rightTab.value = 'build'
+  return buildResult
+}
+
+async function release(buildId: string, tag: string, notes: string): Promise<Release> {
+  const rel = await $fetch<Release>(`/api/flows/${flowId}/releases`, { method: 'POST', body: { buildId, tag: tag || undefined, notes } })
+  if (flow.value) flow.value.releases = [rel, ...(flow.value.releases ?? []).map((r) => (r.status === 'active' ? { ...r, status: 'superseded' as const } : r))]
+  return rel
+}
+
+async function rollback(releaseId: string): Promise<Release> {
+  const rel = await $fetch<Release>(`/api/flows/${flowId}/rollback`, { method: 'POST', body: { releaseId } })
+  if (flow.value) flow.value.releases = [rel, ...(flow.value.releases ?? []).map((r) => (r.status === 'active' ? { ...r, status: 'rolled-back' as const } : r))]
+  return rel
+}
+
+// Ctrl/Cmd+S
+function onKey(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault()
+    save()
+  }
+}
+if (import.meta.client) {
+  onMounted(() => window.addEventListener('keydown', onKey))
+  onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+}
+
+// Guard against losing changes
+const router = useRouter()
+onBeforeRouteLeave(() => {
+  if (dirty.value && !confirm('You have unsaved changes on the canvas. Leave anyway?')) return false
+  return true
+})
+
+// ---------------------------------------------------------------------------
+// Drag & drop from palette
+// ---------------------------------------------------------------------------
+const dragging = ref<NodeKind | null>(null)
+
+function onDrop(event: DragEvent) {
+  const kind = dragging.value ?? (event.dataTransfer?.getData('application/sapo-node') as NodeKind | undefined)
+  dragging.value = null
+  if (!kind || !paletteByKind[kind]) return
+  const position = screenToFlowCoordinate({ x: event.clientX, y: event.clientY })
+  addNode(kind, { x: position.x - 110, y: position.y - 30 })
+}
+
+function onDragOver(e: DragEvent) { e.preventDefault() }
+
+function onNodeClick({ node }: NodeMouseEvent) {
+  selectedId.value = node.id
+  rightTab.value = 'node'
+}
+
+function onEdgeClick({ edge }: { edge: Edge }) {
+  edge.selected = true
+}
+
+function onEdgesChange(changes: Array<{ type: string }>) {
+  if (changes.some((c) => c.type === 'remove')) markDirty()
+}
+
+// Provide context to child components
+provideBuilder({
+  flowId,
+  get flowName() { return flowName.value }, set flowName(v) { flowName.value = v; markDirty() },
+  meta,
+  nodes: nodes as never,
+  edges,
+  entryId,
+  selectedId,
+  dirty,
+  saving,
+  lastSavedAt,
+  issues,
+  addNode,
+  updateConfig,
+  renameNode,
+  removeNode,
+  duplicateNode,
+  setEntry,
+  onConnect,
+  removeEdgeById,
+  toGraph: graphNow,
+  toBlueprint,
+  validate,
+  save,
+  build,
+  release,
+  rollback,
+  importBlueprint,
+  flow,
+})
+
+const errorCount = computed(() => issues.value.filter((i) => i.level === 'error').length)
+const activeRelease = computed(() => (flow.value?.releases ?? []).find((r) => r.status === 'active'))
+const selectedNode = computed(() => nodes.value.find((n) => n.id === selectedId.value) ?? null)
+
+function minimapColor(node: { data?: { kind?: string } }): string {
+  const map: Record<string, string> = {
+    menu: '#8b5cf6', input: '#8b5cf6', pin: '#8b5cf6', display: '#8b5cf6', await_event: '#8b5cf6',
+    http: '#0ea5e9', subflow: '#0ea5e9', event: '#0ea5e9',
+    if: '#f59e0b', choice: '#f59e0b', try: '#f59e0b', script: '#f59e0b',
+    assign: '#10b981', transform: '#10b981', query: '#10b981',
+    wait: '#64748b', loop: '#64748b', break: '#64748b', parallel: '#64748b', schedule: '#64748b',
+    end_success: '#f43f5e', end_failure: '#f43f5e',
+  }
+  return map[node.data?.kind ?? ''] ?? '#94a3b8'
+}
+</script>
+
+<template>
+  <div
+    class="flex h-screen flex-col bg-slate-200/60"
+    @drop="onDrop" @dragover="onDragOver"
+  >
+    <!-- Toolbar -->
+    <header class="z-30 flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 shadow-sm">
+      <NuxtLink to="/flows" class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="Back to flows">
+        <ArrowLeftIcon class="h-5 w-5" />
+      </NuxtLink>
+      <div class="h-6 w-px bg-slate-200" />
+      <input
+        v-model="flowName" @change="markDirty()"
+        class="w-64 rounded-lg border border-transparent px-2 py-1.5 text-sm font-bold text-slate-800 hover:border-slate-200 focus:border-brand-400 focus:outline-none"
+      />
+      <span v-if="activeRelease" class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+        <RocketLaunchIcon class="h-3.5 w-3.5" /> {{ activeRelease.tag }} live
+      </span>
+      <span v-else class="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200">draft</span>
+      <span v-if="errorCount" class="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-600 ring-1 ring-rose-200">
+        <ExclamationTriangleIcon class="h-3.5 w-3.5" /> {{ errorCount }} error{{ errorCount > 1 ? 's' : '' }}
+      </span>
+      <span class="text-[11px] text-slate-400">
+        {{ dirty ? '● unsaved changes' : `saved ${lastSavedAt ? new Date(lastSavedAt).toLocaleTimeString() : ''}` }}
+      </span>
+
+      <div class="ml-auto flex items-center gap-2">
+        <button
+          class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+          @click="showBlueprint = true"
+        >
+          <DocumentTextIcon class="h-4 w-4" /> Blueprint JSON
+        </button>
+        <button
+          class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+          @click="showSimulator = !showSimulator"
+        >
+          <PlayCircleIcon class="h-4 w-4 text-brand-600" /> Simulate
+        </button>
+        <button
+          class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300"
+          :class="saving ? 'opacity-60' : ''" @click="save()"
+        >
+          <CloudArrowUpIcon class="h-4 w-4" /> Save
+        </button>
+        <button
+          class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-700"
+          @click="build()"
+        >
+          <WrenchScrewdriverIcon class="h-4 w-4" /> Build &amp; validate
+        </button>
+        <button
+          class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-brand-600 to-fuchsia-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm shadow-brand-200 hover:from-brand-500 hover:to-fuchsia-500"
+          @click="rightTab = 'build'"
+        >
+          <RocketLaunchIcon class="h-4 w-4" /> Release
+        </button>
+      </div>
+    </header>
+
+    <div class="flex min-h-0 flex-1">
+      <!-- Palette -->
+      <BuilderPalette />
+
+      <!-- Canvas -->
+      <div class="relative min-w-0 flex-1">
+        <VueFlow
+          v-model:nodes="nodes" v-model:edges="edges"
+          :default-viewport="{ zoom: 0.85 }"
+          :min-zoom="0.2" :max-zoom="2.5"
+          :snap-to-grid="true" :snap-grid="[16, 16]"
+          :delete-key-code="['Backspace', 'Delete']"
+          fit-view-on-init
+          @connect="onConnect" @node-click="onNodeClick" @edge-click="onEdgeClick"
+          @edges-change="onEdgesChange"
+          @node-drag-stop="markDirty" @nodes-change="markDirtyIfNeeded"
+        >
+          <Background :gap="20" :size="1.4" pattern-color="#cbd5e1" />
+          <Controls position="bottom-left" />
+          <MiniMap position="bottom-right" :node-color="minimapColor" :mask-color="'rgba(241,245,249,0.75)'" />
+          <template #node-sapo="props">
+            <BuilderCanvasNode :id="props.id" :selected="props.selected" />
+          </template>
+        </VueFlow>
+
+        <div v-if="!nodes.length" class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+          <div class="rounded-2xl border-2 border-dashed border-slate-300 bg-white/70 px-10 py-8">
+            <div class="text-lg font-bold text-slate-500">Drag your first node here</div>
+            <p class="mt-1 text-sm text-slate-400">Start with a <b>Menu</b>, add an <b>HTTP API</b>, end with <b>Terminate</b>.<br/>What you draw is exactly the Sapo DSL blueprint that ships.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right panel -->
+      <div class="flex w-[360px] shrink-0 flex-col border-l border-slate-200 bg-white">
+        <div class="flex shrink-0 border-b border-slate-200">
+          <button
+            class="flex-1 border-b-2 px-4 py-3 text-xs font-bold uppercase tracking-wide"
+            :class="rightTab === 'node' ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-400 hover:text-slate-600'"
+            @click="rightTab = 'node'"
+          >{{ selectedNode ? 'Node settings' : 'Flow settings' }}</button>
+          <button
+            class="flex-1 border-b-2 px-4 py-3 text-xs font-bold uppercase tracking-wide"
+            :class="rightTab === 'build' ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-400 hover:text-slate-600'"
+            @click="rightTab = 'build'"
+          >Build &amp; release</button>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto">
+          <BuilderInspector v-if="rightTab === 'node'" />
+          <BuilderBuildPanel v-else />
+        </div>
+      </div>
+    </div>
+
+    <!-- Overlays -->
+    <BuilderBlueprintDrawer v-if="showBlueprint" @close="showBlueprint = false" />
+    <BuilderSimulator v-if="showSimulator" @close="showSimulator = false" />
+  </div>
+</template>
+
+<script lang="ts">
+function markDirtyIfNeeded() { /* handled via node-drag-stop to avoid loops */ }
+function minimapColor(node: { data?: { kind?: string } }): string {
+  const map: Record<string, string> = {
+    menu: '#8b5cf6', input: '#8b5cf6', pin: '#8b5cf6', display: '#8b5cf6', await_event: '#8b5cf6',
+    http: '#0ea5e9', subflow: '#0ea5e9', event: '#0ea5e9',
+    if: '#f59e0b', choice: '#f59e0b', try: '#f59e0b', script: '#f59e0b',
+    assign: '#10b981', transform: '#10b981', query: '#10b981',
+    wait: '#64748b', loop: '#64748b', break: '#64748b', parallel: '#64748b', schedule: '#64748b',
+    end_success: '#f43f5e', end_failure: '#f43f5e',
+  }
+  return map[node.data?.kind ?? ''] ?? '#94a3b8'
+}
+export default { name: 'BuilderPage' }
+</script>
