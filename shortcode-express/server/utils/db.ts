@@ -6,7 +6,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
-import type { Build, Flow, Invoice, Invite, Member, Plan, Release, ShortCode, User } from '../../shared/types'
+import type { Build, CheckoutSession, Flow, Invoice, Invite, Member, Plan, Release, SessionPack, ShortCode, User, WebhookDelivery } from '../../shared/types'
 import { blueprintToGraph, graphToBlueprint, validateBlueprint } from '../../shared/utils/sapo'
 
 const DATA_DIR = path.resolve(process.cwd(), '.data')
@@ -30,6 +30,8 @@ export interface DB {
   invites: Invite[]
   invoices: Invoice[]
   plans: Plan[]
+  checkouts: CheckoutSession[]
+  webhookDeliveries: WebhookDelivery[]
   stats: {
     days: StatsDay[]
     networks: Record<string, number>
@@ -52,6 +54,29 @@ export const PLANS: Plan[] = [
     id: 'scale', name: 'Scale', priceMonthly: 1499, sessionQuota: 500000, overagePerSession: 0.02, maxShortcodes: 10,
     features: ['10 short codes', '500,000 sessions / month', 'Team collaboration (unlimited seats)', 'Dedicated throughput', 'SLA 99.95%'],
   },
+
+]
+
+/** Session top-up packs (pay-as-you-grow, webcheckout) */
+export const SESSION_PACKS: SessionPack[] = [
+  { id: 'p5', sessions: 5_000, price: 120, label: '5,000 sessions', perSession: 0.024 },
+  { id: 'p20', sessions: 20_000, price: 400, label: '20,000 sessions', perSession: 0.02 },
+  { id: 'p50', sessions: 50_000, price: 850, label: '50,000 sessions', perSession: 0.017 },
+  { id: 'p150', sessions: 150_000, price: 2_200, label: '150,000 sessions', perSession: 0.0147 },
+]
+
+/** One-time activation fee for a new short code, by plan */
+export const SHORTCODE_SETUP_FEES: Record<string, number> = { starter: 250, growth: 400, scale: 750 }
+
+export const WEBHOOK_EVENTS: Array<{ id: import('../../shared/types').WebhookEventName; label: string; desc: string }> = [
+  { id: 'payment.succeeded', label: 'payment.succeeded', desc: 'A webcheckout payment succeeded (code purchase or top-up), or an in-flow charge was accepted' },
+  { id: 'shortcode.assigned', label: 'shortcode.assigned', desc: 'A new short code was provisioned and is live' },
+  { id: 'sessions.topped_up', label: 'sessions.topped_up', desc: 'A session pack purchase was credited to a short code' },
+  { id: 'session.started', label: 'session.started', desc: 'A subscriber dialed one of your codes' },
+  { id: 'session.completed', label: 'session.completed', desc: 'A USSD session reached a success terminate node' },
+  { id: 'session.failed', label: 'session.failed', desc: 'A USSD session ended in failure or quota exhaustion' },
+  { id: 'flow.http_request', label: 'flow.http_request', desc: 'Your flow called an HTTP integration while a session was live' },
+  { id: 'test.ping', label: 'test.ping', desc: 'Test event you can fire any time' },
 ]
 
 function rid(prefix: string): string {
@@ -196,7 +221,7 @@ function seed(): DB {
   ]
 
   return {
-    users, flows, shortcodes, members, invites, invoices, plans: PLANS,
+    users, flows, shortcodes, members, invites, invoices, plans: PLANS, checkouts: [], webhookDeliveries: [],
     stats: {
       days,
       networks: { MTN: 58, 'AirtelTigo': 24, Vodafone: 18 },

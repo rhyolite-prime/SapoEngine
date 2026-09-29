@@ -13,7 +13,10 @@ useHead({ title: 'ShortCodeExpress — Build USSD services visually' })
         </div>
         <span class="text-lg font-bold text-white">ShortCode<span class="text-brand-400">Express</span></span>
       </div>
-      <NuxtLink to="/login" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">
+      <NuxtLink to="/signup" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">
+        Start free — live in 5 min
+      </NuxtLink>
+      <NuxtLink to="/login" class="rounded-lg px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white">
         Sign in
       </NuxtLink>
     </header>
@@ -30,12 +33,12 @@ useHead({ title: 'ShortCodeExpress — Build USSD services visually' })
           Ship what the VM runs.
         </h1>
         <p class="mx-auto mt-6 max-w-2xl text-lg text-slate-400">
-          Design menus, plug in APIs and collaborate with your team — ShortCodeExpress compiles your canvas
-          into the exact Sapo DSL workflow blueprint that executes on the Sapo virtual machine.
+          Sign up, buy a short code with mobile money, and dial it live in five minutes — then design menus, plug in APIs and collaborate,
+          while ShortCodeExpress compiles your canvas into the exact Sapo DSL workflow blueprint that executes on the Sapo virtual machine.
         </p>
         <div class="mt-8 flex items-center justify-center gap-3">
-          <NuxtLink to="/login" class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-900/50 hover:bg-brand-500">
-            Open the builder <ArrowRightIcon class="h-4 w-4" />
+          <NuxtLink to="/signup" class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-900/50 hover:bg-brand-500">
+            Get a short code <ArrowRightIcon class="h-4 w-4" />
           </NuxtLink>
           <a href="#how" class="rounded-xl border border-white/10 px-6 py-3 text-sm font-semibold text-slate-300 hover:border-white/25 hover:text-white">How it works</a>
         </div>

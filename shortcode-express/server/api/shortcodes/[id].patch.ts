@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   const sc = db.shortcodes.find((s) => s.id === id)
   if (!sc) throw createError({ statusCode: 404, statusMessage: 'Short code not found' })
-  const body = await readBody<{ plan?: string; status?: string; label?: string; flowId?: string; sessionsQuota?: number }>(event)
+  const body = await readBody<{ plan?: string; status?: string; label?: string; flowId?: string; sessionsQuota?: number; sessionsUsed?: number }>(event)
   if (body.plan) {
     const plan = db.plans.find((p) => p.id === body.plan)
     if (plan) { sc.plan = plan.id; sc.sessionsQuota = plan.sessionQuota }
@@ -14,6 +14,8 @@ export default defineEventHandler(async (event) => {
   if (body.label !== undefined) sc.label = body.label
   if (body.flowId !== undefined) sc.flowId = body.flowId
   if (body.sessionsQuota !== undefined) sc.sessionsQuota = body.sessionsQuota
+  // demo affordance: simulate quota consumption to try the 402 top-up path
+  if (body.sessionsUsed !== undefined) sc.sessionsUsed = body.sessionsUsed
   saveDb(db)
   return sc
 })

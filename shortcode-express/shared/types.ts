@@ -261,4 +261,86 @@ export interface User {
   role: string
   avatarHue: number
   title: string
+  company?: string
+  createdAt?: string
+  apiKeys?: ApiKey[]
+  webhook?: WebhookEndpoint
+}
+
+// --- Developer platform: API keys, webcheckout, webhooks ---
+
+export interface ApiKey {
+  id: string
+  name: string
+  key: string // sk_live_… (demo store keeps it visible)
+  createdAt: string
+  lastUsedAt?: string
+  revoked?: boolean
+}
+
+export type WebhookEventName =
+  | 'test.ping'
+  | 'payment.succeeded'
+  | 'shortcode.assigned'
+  | 'sessions.topped_up'
+  | 'session.started'
+  | 'session.completed'
+  | 'session.failed'
+  | 'flow.http_request'
+
+export interface WebhookEndpoint {
+  url: string
+  secret: string
+  events: WebhookEventName[]
+  active: boolean
+}
+
+export interface WebhookDelivery {
+  id: string
+  userId: string
+  eventId: string
+  event: WebhookEventName
+  url: string
+  payload: Record<string, unknown>
+  signature: string
+  status: 'delivered' | 'failed'
+  responseStatus?: number
+  error?: string
+  createdAt: string
+}
+
+export interface CheckoutItem {
+  label: string
+  detail?: string
+  qty: number
+  unit: string
+  amount: number
+}
+
+export type CheckoutKind = 'shortcode' | 'topup'
+
+export interface CheckoutSession {
+  id: string
+  kind: CheckoutKind
+  status: 'pending' | 'paid' | 'failed' | 'expired'
+  userId: string
+  items: CheckoutItem[]
+  total: number
+  currency: 'GHS'
+  /** shortcode: { mode, code?, label, network, planId } · topup: { shortcodeId, packId, sessions } */
+  meta: Record<string, unknown>
+  createdAt: string
+  paidAt?: string
+  paymentMethod?: 'momo' | 'card'
+  failureReason?: string
+  /** set on fulfilment */
+  result?: Record<string, unknown>
+}
+
+export interface SessionPack {
+  id: string
+  sessions: number
+  price: number
+  label: string
+  perSession: number
 }

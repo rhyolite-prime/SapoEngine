@@ -6,7 +6,8 @@ export default defineEventHandler(async (event) => {
   if (!body.url) throw createError({ statusCode: 400, statusMessage: 'url is required' })
   let parsed: URL
   try {
-    parsed = new URL(body.url)
+    // relative URLs resolve against this deployment (sandbox APIs like /api/mock/pay)
+    parsed = new URL(body.url, getRequestURL(event).origin)
   } catch {
     throw createError({ statusCode: 400, statusMessage: 'invalid url' })
   }

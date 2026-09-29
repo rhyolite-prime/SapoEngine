@@ -45,6 +45,10 @@ async function pick(email: string) {
         <p class="mt-4 text-center text-[11px] text-slate-400">
           Demo authentication — production deployments wire SSO (Google Workspace / Entra ID).
         </p>
+        <div class="mt-3 rounded-xl bg-brand-50 p-3 text-center ring-1 ring-brand-100">
+          <p class="text-xs text-slate-600">New here? Provision a short code in minutes.</p>
+          <NuxtLink to="/signup" class="mt-1 inline-block text-sm font-bold text-brand-700 hover:underline">Create a developer account →</NuxtLink>
+        </div>
       </div>
     </div>
   </div>

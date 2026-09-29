@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   ChartBarIcon, Squares2X2Icon, SignalIcon, CreditCardIcon, UsersIcon,
-  ArrowLeftOnRectangleIcon, BuildingOffice2Icon,
+  ArrowLeftOnRectangleIcon, BuildingOffice2Icon, CodeBracketIcon, RocketLaunchIcon,
 } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
@@ -13,6 +13,7 @@ const nav = [
   { to: '/shortcodes', label: 'Short codes', icon: SignalIcon },
   { to: '/billing', label: 'Billing & quotas', icon: CreditCardIcon },
   { to: '/team', label: 'Team', icon: UsersIcon },
+  { to: '/developers', label: 'Developers', icon: CodeBracketIcon },
 ]
 </script>
 
@@ -36,6 +37,10 @@ const nav = [
         <span class="truncate font-medium text-slate-200">Rhyolite Prime</span>
         <span class="ml-auto rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">Ghana</span>
       </div>
+
+      <NuxtLink to="/onboarding" class="mx-3 mb-3 flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand-600 to-fuchsia-600 px-3 py-2.5 text-xs font-bold text-white shadow-lg shadow-brand-900/40 hover:from-brand-500 hover:to-fuchsia-500">
+        <RocketLaunchIcon class="h-4 w-4" /> Go live in 5 minutes
+      </NuxtLink>
 
       <nav class="flex-1 space-y-1 px-3">
         <NuxtLink
