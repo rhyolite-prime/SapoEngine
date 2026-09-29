@@ -256,7 +256,7 @@ export async function sendInput(sessionId: string, text: string): Promise<DialRe
   return sessionPayload(session)
 }
 
-export function getSession(sessionId: string): DialResult {
+export function getUssdSession(sessionId: string): DialResult {
   const session = sessions.get(sessionId)
   if (!session) throw createError({ statusCode: 404, statusMessage: 'USSD session not found or expired' })
   return sessionPayload(session)
