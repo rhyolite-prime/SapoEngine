@@ -152,7 +152,7 @@ const validationQuick = [
           >
             <span class="font-mono text-xs font-bold tracking-wider text-slate-700">#{{ selected.id }}</span>
             <button class="rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-700" title="Copy node id" @click="copyNodeId">
-              <ClipboardDocumentCheckIcon v-if="idCopied" class="h-3.5 w-3.5 text-emerald-500" />
+              <ClipboardDocumentCheckIcon v-if="idCopied" class="h-3.5 w-3.5 text-success-500" />
               <ClipboardDocumentIcon v-else class="h-3.5 w-3.5" />
             </button>
           </div>

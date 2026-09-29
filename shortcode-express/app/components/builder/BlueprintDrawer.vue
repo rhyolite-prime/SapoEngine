@@ -53,11 +53,11 @@ const validation = computed(() => validateBlueprint(blueprint.value, ctx.toGraph
       <header class="flex h-12 shrink-0 items-center gap-3 border-b border-slate-200 px-5">
         <span class="text-sm font-bold text-slate-800">Sapo DSL blueprint</span>
         <span class="rounded-full bg-brand-50 px-2.5 py-0.5 font-mono text-[11px] font-bold text-brand-700">{{ blueprint.name }}</span>
-        <span v-if="validation.ok" class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">✓ valid</span>
+        <span v-if="validation.ok" class="rounded-full bg-success-50 px-2.5 py-0.5 text-[11px] font-bold text-success-700">✓ valid</span>
         <span v-else class="rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-bold text-rose-600">{{ validation.errors.length }} error(s)</span>
         <div class="ml-auto flex items-center gap-1.5">
           <button class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300" @click="copy()">
-            <component :is="copied ? ClipboardDocumentCheckIcon : ClipboardDocumentIcon" class="h-4 w-4" :class="copied ? 'text-emerald-500' : ''" />
+            <component :is="copied ? ClipboardDocumentCheckIcon : ClipboardDocumentIcon" class="h-4 w-4" :class="copied ? 'text-success-500' : ''" />
             {{ copied ? 'Copied' : 'Copy' }}
           </button>
           <button class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300" @click="download()">
@@ -82,7 +82,7 @@ const validation = computed(() => validateBlueprint(blueprint.value, ctx.toGraph
         <pre class="sce-json overflow-auto bg-ink-950 p-5 leading-relaxed text-slate-200">{{ json }}</pre>
         <div class="overflow-y-auto border-l border-slate-200 p-4">
           <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Validation</div>
-          <div v-if="!validation.errors.length && !validation.warnings.length" class="mt-3 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-700">
+          <div v-if="!validation.errors.length && !validation.warnings.length" class="mt-3 rounded-xl bg-success-50 p-3 text-xs text-success-700">
             ✓ Blueprint is valid — this exact JSON runs on the Sapo VM (<code class="font-mono">sapoc run blueprint.json</code>).
           </div>
           <div v-for="(e, i) in validation.errors" :key="'e' + i" class="mt-2 rounded-xl bg-rose-50 p-2.5 text-[11px] leading-snug text-rose-700">

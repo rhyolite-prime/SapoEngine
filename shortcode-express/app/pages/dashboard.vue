@@ -33,9 +33,9 @@ const sessionsOption = computed(() => ({
   series: [
     {
       name: 'Sessions', type: 'line' as const, smooth: true, symbol: 'none', data: stats.value?.trend.sessions ?? [],
-      lineStyle: { width: 3, color: '#7c3aed' }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(124,58,237,0.25)' }, { offset: 1, color: 'rgba(124,58,237,0)' }] } },
+      lineStyle: { width: 3, color: '#80004d' }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(128,0,77,0.25)' }, { offset: 1, color: 'rgba(128,0,77,0)' }] } },
     },
-    { name: 'Completed', type: 'line' as const, smooth: true, symbol: 'none', data: stats.value?.trend.completed ?? [], lineStyle: { width: 1.5, color: '#10b981' } },
+    { name: 'Completed', type: 'line' as const, smooth: true, symbol: 'none', data: stats.value?.trend.completed ?? [], lineStyle: { width: 1.5, color: '#4bb543' } },
     { name: 'Failed', type: 'line' as const, smooth: true, symbol: 'none', data: stats.value?.trend.failed ?? [], lineStyle: { width: 1.5, color: '#f43f5e' } },
   ],
 }))
@@ -72,12 +72,12 @@ const hourlyOption = computed(() => ({
   yAxis: { type: 'value' as const, splitNumber: 3 },
   series: [{
     type: 'bar' as const, data: stats.value?.today.hourly ?? [],
-    itemStyle: { color: (p: { dataIndex: number }) => (p.dataIndex === new Date().getHours() ? '#7c3aed' : '#c4b5fd'), borderRadius: [3, 3, 0, 0] },
+    itemStyle: { color: (p: { dataIndex: number }) => (p.dataIndex === new Date().getHours() ? '#80004d' : '#ec9dc4'), borderRadius: [3, 3, 0, 0] },
     barMaxWidth: 12,
   }],
 }))
 
-const statusColor: Record<string, string> = { active: 'bg-emerald-100 text-emerald-700', provisioning: 'bg-amber-100 text-amber-700', suspended: 'bg-rose-100 text-rose-700' }
+const statusColor: Record<string, string> = { active: 'bg-success-100 text-success-700', provisioning: 'bg-amber-100 text-amber-700', suspended: 'bg-rose-100 text-rose-700' }
 </script>
 
 <template>
@@ -98,7 +98,7 @@ const statusColor: Record<string, string> = { active: 'bg-emerald-100 text-emera
       <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/70">
         <div class="flex items-center justify-between text-slate-500"><span class="text-xs font-semibold uppercase tracking-wide">Sessions today</span><SignalIcon class="h-5 w-5 text-brand-500" /></div>
         <div class="mt-2 text-3xl font-extrabold text-slate-900">{{ fmt(stats?.kpis.sessionsToday ?? 0) }}</div>
-        <div class="mt-1 flex items-center gap-1 text-xs" :class="(stats?.kpis.sessionsTodayDelta ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'">
+        <div class="mt-1 flex items-center gap-1 text-xs" :class="(stats?.kpis.sessionsTodayDelta ?? 0) >= 0 ? 'text-success-600' : 'text-rose-600'">
           <component :is="(stats?.kpis.sessionsTodayDelta ?? 0) >= 0 ? ArrowTrendingUpIcon : ArrowTrendingDownIcon" class="h-4 w-4" />
           {{ Math.abs(stats?.kpis.sessionsTodayDelta ?? 0) }}% vs yesterday · {{ fmt(stats?.kpis.sessions30d ?? 0) }} in 30d
         </div>
@@ -109,7 +109,7 @@ const statusColor: Record<string, string> = { active: 'bg-emerald-100 text-emera
         <div class="mt-1 text-xs text-slate-500">{{ money(stats?.kpis.revenue30d ?? 0) }} in the last 30 days</div>
       </div>
       <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/70">
-        <div class="flex items-center justify-between text-slate-500"><span class="text-xs font-semibold uppercase tracking-wide">Completion rate</span><CheckBadgeIcon class="h-5 w-5 text-emerald-500" /></div>
+        <div class="flex items-center justify-between text-slate-500"><span class="text-xs font-semibold uppercase tracking-wide">Completion rate</span><CheckBadgeIcon class="h-5 w-5 text-success-500" /></div>
         <div class="mt-2 text-3xl font-extrabold text-slate-900">{{ stats?.kpis.completionRate ?? 0 }}%</div>
         <div class="mt-1 text-xs text-slate-500">{{ fmt(stats?.kpis.completed30d ?? 0) }} completed · {{ fmt(stats?.kpis.failed30d ?? 0) }} failed (30d)</div>
       </div>
@@ -176,7 +176,7 @@ const statusColor: Record<string, string> = { active: 'bg-emerald-100 text-emera
               <td class="px-5 py-3.5">
                 <div class="flex items-center gap-2">
                   <div class="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
-                    <div class="h-full rounded-full bg-emerald-500" :style="{ width: sc.completionRate + '%' }" />
+                    <div class="h-full rounded-full bg-success-500" :style="{ width: sc.completionRate + '%' }" />
                   </div>
                   <span class="text-xs text-slate-500">{{ sc.completionRate }}%</span>
                 </div>

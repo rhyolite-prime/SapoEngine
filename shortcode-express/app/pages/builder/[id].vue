@@ -156,7 +156,7 @@ function onConnect(conn: Connection) {
     sourceHandle: handle,
     targetHandle: null,
     label,
-    style: isErr ? { stroke: '#f43f5e', strokeDasharray: '6 3' } : isOpt ? { stroke: '#7c3aed' } : { stroke: '#94a3b8' },
+    style: isErr ? { stroke: '#f43f5e', strokeDasharray: '6 3' } : isOpt ? { stroke: '#80004d' } : { stroke: '#94a3b8' },
     labelStyle: { fill: '#475569', fontSize: '10px' },
     labelBgStyle: { fill: '#fff' },
     markerEnd: MarkerType.ArrowClosed,
@@ -342,10 +342,10 @@ const selectedNode = computed(() => nodes.value.find((n) => n.id === selectedId.
 
 function minimapColor(node: { data?: { kind?: string } }): string {
   const map: Record<string, string> = {
-    menu: '#8b5cf6', input: '#8b5cf6', pin: '#8b5cf6', display: '#8b5cf6', await_event: '#8b5cf6',
+    menu: '#80004d', input: '#80004d', pin: '#80004d', display: '#80004d', await_event: '#80004d',
     http: '#0ea5e9', subflow: '#0ea5e9', event: '#0ea5e9',
     if: '#f59e0b', choice: '#f59e0b', try: '#f59e0b', script: '#f59e0b',
-    assign: '#10b981', transform: '#10b981', query: '#10b981',
+    assign: '#4bb543', transform: '#4bb543', query: '#4bb543',
     wait: '#64748b', loop: '#64748b', break: '#64748b', parallel: '#64748b', schedule: '#64748b',
     end_success: '#f43f5e', end_failure: '#f43f5e',
   }
@@ -368,7 +368,7 @@ function minimapColor(node: { data?: { kind?: string } }): string {
         v-model="flowName" @change="markDirty()"
         class="w-64 rounded-lg border border-transparent px-2 py-1.5 text-sm font-bold text-slate-800 hover:border-slate-200 focus:border-brand-400 focus:outline-none"
       />
-      <span v-if="activeRelease" class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+      <span v-if="activeRelease" class="inline-flex items-center gap-1.5 rounded-full bg-success-50 px-2.5 py-1 text-[11px] font-bold text-success-700 ring-1 ring-success-200">
         <RocketLaunchIcon class="h-3.5 w-3.5" /> {{ activeRelease.tag }} live
       </span>
       <span v-else class="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200">draft</span>
@@ -405,7 +405,7 @@ function minimapColor(node: { data?: { kind?: string } }): string {
           <WrenchScrewdriverIcon class="h-4 w-4" /> Build &amp; validate
         </button>
         <button
-          class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-brand-600 to-fuchsia-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm shadow-brand-200 hover:from-brand-500 hover:to-fuchsia-500"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-brand-700 to-brand-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm shadow-brand-200 hover:from-brand-500 hover:to-brand-400"
           @click="rightTab = 'build'"
         >
           <RocketLaunchIcon class="h-4 w-4" /> Release
@@ -477,10 +477,10 @@ function minimapColor(node: { data?: { kind?: string } }): string {
 function markDirtyIfNeeded() { /* handled via node-drag-stop to avoid loops */ }
 function minimapColor(node: { data?: { kind?: string } }): string {
   const map: Record<string, string> = {
-    menu: '#8b5cf6', input: '#8b5cf6', pin: '#8b5cf6', display: '#8b5cf6', await_event: '#8b5cf6',
+    menu: '#80004d', input: '#80004d', pin: '#80004d', display: '#80004d', await_event: '#80004d',
     http: '#0ea5e9', subflow: '#0ea5e9', event: '#0ea5e9',
     if: '#f59e0b', choice: '#f59e0b', try: '#f59e0b', script: '#f59e0b',
-    assign: '#10b981', transform: '#10b981', query: '#10b981',
+    assign: '#4bb543', transform: '#4bb543', query: '#4bb543',
     wait: '#64748b', loop: '#64748b', break: '#64748b', parallel: '#64748b', schedule: '#64748b',
     end_success: '#f43f5e', end_failure: '#f43f5e',
   }

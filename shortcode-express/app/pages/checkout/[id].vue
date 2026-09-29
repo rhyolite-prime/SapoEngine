@@ -81,12 +81,12 @@ onUnmounted(() => clearInterval(noteTimer))
     <div class="w-full max-w-4xl">
       <!-- header -->
       <div class="mb-6 flex items-center justify-center gap-3">
-        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-fuchsia-600 shadow-lg shadow-brand-200">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-brand-400 shadow-lg shadow-brand-200">
           <svg viewBox="0 0 24 24" class="h-6 w-6 text-white" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h7" /><circle cx="18.5" cy="15.5" r="2.5" /></svg>
         </div>
         <div>
           <div class="text-lg font-bold text-slate-900">ShortCodeExpress <span class="text-slate-400">Checkout</span></div>
-          <div class="flex items-center gap-1 text-[11px] text-slate-500"><ShieldCheckIcon class="h-3.5 w-3.5 text-emerald-500" /> PCI-DSS sandbox · secured payment session</div>
+          <div class="flex items-center gap-1 text-[11px] text-slate-500"><ShieldCheckIcon class="h-3.5 w-3.5 text-success-500" /> PCI-DSS sandbox · secured payment session</div>
         </div>
       </div>
 
@@ -200,11 +200,11 @@ onUnmounted(() => clearInterval(noteTimer))
 
           <!-- SUCCESS -->
           <div v-else-if="phase === 'success'" class="py-4 text-center">
-            <CheckCircleIcon class="mx-auto h-14 w-14 text-emerald-500" />
+            <CheckCircleIcon class="mx-auto h-14 w-14 text-success-500" />
             <h3 class="mt-3 text-lg font-extrabold text-slate-900">Payment received!</h3>
             <p class="mt-1 text-sm text-slate-500">{{ ghs(co.total) }} · invoice issued · webhook fired</p>
 
-            <div v-if="co.kind === 'shortcode' && resultShortcode" class="mt-5 rounded-2xl bg-gradient-to-br from-brand-600 to-fuchsia-600 p-5 text-left text-white shadow-xl">
+            <div v-if="co.kind === 'shortcode' && resultShortcode" class="mt-5 rounded-2xl bg-gradient-to-br from-brand-700 to-brand-500 p-5 text-left text-white shadow-xl">
               <div class="text-[11px] font-bold uppercase tracking-widest text-white/70">Your short code is LIVE</div>
               <div class="mt-1 font-mono text-3xl font-extrabold tracking-wide">{{ resultShortcode.code }}</div>
               <div class="mt-2 text-sm text-white/80">
@@ -212,9 +212,9 @@ onUnmounted(() => clearInterval(noteTimer))
                 {{ Number(resultShortcode.quota ?? 0).toLocaleString() }} sessions ready
               </div>
             </div>
-            <div v-else-if="resultShortcode" class="mt-5 rounded-2xl bg-emerald-50 p-5 text-left ring-1 ring-emerald-100">
-              <div class="text-sm font-bold text-emerald-800">{{ resultShortcode.code }} topped up</div>
-              <div class="text-sm text-emerald-700">+{{ Number(resultShortcode.added ?? 0).toLocaleString() }} sessions → {{ Number(resultShortcode.quota ?? 0).toLocaleString() }} total</div>
+            <div v-else-if="resultShortcode" class="mt-5 rounded-2xl bg-success-50 p-5 text-left ring-1 ring-success-100">
+              <div class="text-sm font-bold text-success-800">{{ resultShortcode.code }} topped up</div>
+              <div class="text-sm text-success-700">+{{ Number(resultShortcode.added ?? 0).toLocaleString() }} sessions → {{ Number(resultShortcode.quota ?? 0).toLocaleString() }} total</div>
             </div>
 
             <div class="mt-6 space-y-2">

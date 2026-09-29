@@ -59,8 +59,8 @@ function addAtCenter(kind: string) {
     <div class="mt-auto border-t border-slate-100 p-4">
       <div class="rounded-xl bg-slate-50 p-3 text-[10.5px] leading-relaxed text-slate-500">
         <b class="text-slate-600">Tip:</b> connect the colored dots —
-        <span class="font-bold text-emerald-600">green</span> = body/then,
-        <span class="font-bold text-violet-600">violet</span> = menu options,
+        <span class="font-bold text-success-600">green</span> = body/then,
+        <span class="font-bold text-brand-600">plum</span> = menu options,
         <span class="font-bold text-rose-600">red</span> = errors.
       </div>
     </div>

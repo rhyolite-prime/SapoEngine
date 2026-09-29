@@ -118,8 +118,8 @@ const curlInput = `curl -X POST ${origin}/api/ussd/input \\
   -d '{ "sessionId": "ussd_xxx", "text": "1" }'`
 
 const eventColor: Record<string, string> = {
-  'payment.succeeded': 'bg-emerald-500', 'session.started': 'bg-brand-500', 'session.completed': 'bg-teal-500',
-  'session.failed': 'bg-rose-500', 'flow.http_request': 'bg-sky-500', 'shortcode.assigned': 'bg-fuchsia-500',
+  'payment.succeeded': 'bg-success-500', 'session.started': 'bg-brand-500', 'session.completed': 'bg-success-600',
+  'session.failed': 'bg-rose-500', 'flow.http_request': 'bg-sky-500', 'shortcode.assigned': 'bg-brand-400',
   'sessions.topped_up': 'bg-amber-500', 'test.ping': 'bg-slate-400',
 }
 </script>
@@ -144,7 +144,7 @@ const eventColor: Record<string, string> = {
             <div class="mt-1 flex items-center gap-2">
               <code class="truncate rounded bg-slate-50 px-2 py-1 font-mono text-xs text-slate-700 ring-1 ring-slate-100">{{ k.key }}</code>
               <button class="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-50 hover:text-slate-700" @click="copy(k.key, k.id)">
-                <ClipboardDocumentCheckIcon v-if="copied === k.id" class="h-4 w-4 text-emerald-500" />
+                <ClipboardDocumentCheckIcon v-if="copied === k.id" class="h-4 w-4 text-success-500" />
                 <ClipboardDocumentIcon v-else class="h-4 w-4" />
               </button>
             </div>
@@ -165,13 +165,13 @@ const eventColor: Record<string, string> = {
       <h2 class="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400"><BoltIcon class="h-4 w-4" /> USSD gateway quickstart</h2>
       <div class="grid gap-4 lg:grid-cols-2">
         <div class="rounded-2xl bg-slate-900 p-5 shadow-lg">
-          <div class="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-400"><SignalIcon class="h-4 w-4 text-emerald-400" /> 1 — start a session</div>
-          <pre class="overflow-x-auto text-[11.5px] leading-relaxed text-emerald-300">{{ curlDial }}</pre>
+          <div class="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-400"><SignalIcon class="h-4 w-4 text-success-400" /> 1 — start a session</div>
+          <pre class="overflow-x-auto text-[11.5px] leading-relaxed text-success-300">{{ curlDial }}</pre>
           <p class="mt-2 text-[11px] text-slate-500">Returns sessionId + the first rendered screen (dynamic <span class="font-mono">${{ '{' }}var{{ '}' }}</span> templates resolved by the Sapo VM).</p>
         </div>
         <div class="rounded-2xl bg-slate-900 p-5 shadow-lg">
-          <div class="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-400"><ArrowPathRoundedSquareIcon class="h-4 w-4 text-emerald-400" /> 2 — send subscriber input</div>
-          <pre class="overflow-x-auto text-[11.5px] leading-relaxed text-emerald-300">{{ curlInput }}</pre>
+          <div class="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-400"><ArrowPathRoundedSquareIcon class="h-4 w-4 text-success-400" /> 2 — send subscriber input</div>
+          <pre class="overflow-x-auto text-[11.5px] leading-relaxed text-success-300">{{ curlInput }}</pre>
           <p class="mt-2 text-[11px] text-slate-500">Quotas are enforced per code; 402 means top-up time. Sandbox rails: <span class="font-mono">/api/mock/pay</span> always approves and fires <span class="font-mono">payment.succeeded</span>.</p>
         </div>
       </div>
@@ -222,8 +222,8 @@ const eventColor: Record<string, string> = {
             <button :disabled="testing || !endpoint?.url" class="flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-500 disabled:opacity-40" @click="sendTest">
               <PaperAirplaneIcon class="h-4 w-4" /> Send test event
             </button>
-            <span v-if="whSaved" class="text-xs font-bold text-emerald-600">saved ✓</span>
-            <span v-if="testResult === 'ok'" class="text-xs font-bold text-emerald-600">delivered ✓</span>
+            <span v-if="whSaved" class="text-xs font-bold text-success-600">saved ✓</span>
+            <span v-if="testResult === 'ok'" class="text-xs font-bold text-success-600">delivered ✓</span>
             <span v-if="testResult === 'fail'" class="text-xs font-bold text-rose-600">failed ✗</span>
           </div>
 
@@ -232,7 +232,7 @@ const eventColor: Record<string, string> = {
             <div class="mt-1 flex items-center gap-2">
               <code class="truncate font-mono text-xs text-slate-700">{{ endpoint.secret }}</code>
               <button class="shrink-0 rounded p-1 text-slate-400 hover:text-slate-700" @click="copy(endpoint.secret, 'secret')">
-                <ClipboardDocumentCheckIcon v-if="copied === 'secret'" class="h-4 w-4 text-emerald-500" /><ClipboardDocumentIcon v-else class="h-4 w-4" />
+                <ClipboardDocumentCheckIcon v-if="copied === 'secret'" class="h-4 w-4 text-success-500" /><ClipboardDocumentIcon v-else class="h-4 w-4" />
               </button>
             </div>
             <p class="mt-1.5 text-[10.5px] text-slate-500">Verify with HMAC-SHA256 over <span class="font-mono">"{timestamp}.{body}"</span> from the <span class="font-mono">x-sapexp-signature</span> header (<span class="font-mono">t=…,v1=…</span>).</p>
@@ -250,12 +250,12 @@ const eventColor: Record<string, string> = {
               <summary class="flex cursor-pointer list-none items-center gap-2">
                 <span class="h-2 w-2 shrink-0 rounded-full" :class="eventColor[d.event] ?? 'bg-slate-400'"></span>
                 <span class="font-mono text-xs font-bold text-slate-800">{{ d.event }}</span>
-                <span class="rounded px-1.5 py-0.5 text-[10px] font-bold" :class="d.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'">{{ d.status }}{{ d.responseStatus ? ' ' + d.responseStatus : '' }}</span>
+                <span class="rounded px-1.5 py-0.5 text-[10px] font-bold" :class="d.status === 'delivered' ? 'bg-success-100 text-success-700' : 'bg-rose-100 text-rose-700'">{{ d.status }}{{ d.responseStatus ? ' ' + d.responseStatus : '' }}</span>
                 <span class="ml-auto text-[10px] text-slate-400">{{ new Date(d.createdAt).toLocaleTimeString() }}</span>
               </summary>
               <div class="mt-2 space-y-1.5">
                 <div class="text-[10.5px] text-slate-500">→ {{ d.url }}</div>
-                <pre class="max-h-56 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-slate-900 p-2.5 text-[10.5px] leading-relaxed text-emerald-300">{{ JSON.stringify(d.payload, null, 2) }}</pre>
+                <pre class="max-h-56 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-slate-900 p-2.5 text-[10.5px] leading-relaxed text-success-300">{{ JSON.stringify(d.payload, null, 2) }}</pre>
                 <div class="flex items-center gap-2">
                   <code class="truncate rounded bg-white px-2 py-1 font-mono text-[10px] text-slate-500 ring-1 ring-slate-100">x-sapexp-signature: {{ d.signature.slice(0, 34) }}…</code>
                   <button class="ml-auto shrink-0 rounded-lg bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100" @click="resend(d.id)">resend</button>

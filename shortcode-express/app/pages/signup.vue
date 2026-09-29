@@ -38,7 +38,7 @@ async function submit() {
         </div>
         <h1 class="text-4xl font-extrabold leading-tight text-white">
           Go from signup to a<br>
-          <span class="bg-gradient-to-r from-brand-400 to-fuchsia-400 bg-clip-text text-transparent">dialable short code</span> in 5 minutes.
+          <span class="bg-gradient-to-r from-brand-400 to-brand-300 bg-clip-text text-transparent">dialable short code</span> in 5 minutes.
         </h1>
         <p class="mt-4 max-w-md text-slate-400">
           ShortCodeExpress provisions real USSD short codes with webcheckout, session packs, API keys and signed payment webhooks — all on the Sapo Engine.
@@ -58,7 +58,7 @@ async function submit() {
 
       <div class="rounded-2xl bg-white p-7 shadow-2xl">
         <div class="mb-6 flex items-center gap-3">
-          <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-fuchsia-600">
+          <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-brand-400">
             <svg viewBox="0 0 24 24" class="h-6 w-6 text-white" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <path d="M4 7h16M4 12h10M4 17h7" /><circle cx="18.5" cy="15.5" r="2.5" />
             </svg>

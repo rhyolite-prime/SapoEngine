@@ -8,7 +8,7 @@ useHead({ title: 'ShortCodeExpress — Build USSD services visually' })
   <div class="min-h-screen bg-ink-950 text-slate-200">
     <header class="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
       <div class="flex items-center gap-3">
-        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-fuchsia-600">
+        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-brand-400">
           <svg viewBox="0 0 24 24" class="h-5 w-5 text-white" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h7" /><circle cx="18.5" cy="15.5" r="2.5" /></svg>
         </div>
         <span class="text-lg font-bold text-white">ShortCode<span class="text-brand-400">Express</span></span>
@@ -29,7 +29,7 @@ useHead({ title: 'ShortCodeExpress — Build USSD services visually' })
         </div>
         <h1 class="mx-auto max-w-3xl text-5xl font-extrabold leading-tight tracking-tight text-white">
           Compose USSD services by
-          <span class="bg-gradient-to-r from-brand-400 to-fuchsia-400 bg-clip-text text-transparent">drag &amp; drop</span>.
+          <span class="bg-gradient-to-r from-brand-400 to-brand-300 bg-clip-text text-transparent">drag &amp; drop</span>.
           Ship what the VM runs.
         </h1>
         <p class="mx-auto mt-6 max-w-2xl text-lg text-slate-400">
@@ -48,27 +48,27 @@ useHead({ title: 'ShortCodeExpress — Build USSD services visually' })
         <div class="rounded-2xl border border-white/10 bg-ink-900/80 p-2 shadow-2xl">
           <div class="rounded-xl bg-ink-950 p-5 text-left font-mono text-[12.5px] leading-relaxed">
             <div class="mb-3 flex items-center gap-1.5">
-              <span class="h-3 w-3 rounded-full bg-rose-500/70"></span><span class="h-3 w-3 rounded-full bg-amber-500/70"></span><span class="h-3 w-3 rounded-full bg-emerald-500/70"></span>
+              <span class="h-3 w-3 rounded-full bg-rose-500/70"></span><span class="h-3 w-3 rounded-full bg-amber-500/70"></span><span class="h-3 w-3 rounded-full bg-success-500/70"></span>
               <span class="ml-3 text-slate-500">daccu_ussd_service.json — generated from the canvas</span>
             </div>
             <pre class="overflow-x-auto text-slate-300"><code>{
-  <span class="text-sky-400">"name"</span>: <span class="text-emerald-400">"examples.daccu_ussd_service"</span>,
+  <span class="text-sky-400">"name"</span>: <span class="text-success-400">"examples.daccu_ussd_service"</span>,
   <span class="text-sky-400">"nodes"</span>: [
     {
-      <span class="text-sky-400">"id"</span>: <span class="text-emerald-400">"main_menu"</span>,
-      <span class="text-sky-400">"type"</span>: <span class="text-emerald-400">"action"</span>,
+      <span class="text-sky-400">"id"</span>: <span class="text-success-400">"main_menu"</span>,
+      <span class="text-sky-400">"type"</span>: <span class="text-success-400">"action"</span>,
       <span class="text-sky-400">"prompt_config"</span>: {
-        <span class="text-sky-400">"message"</span>: <span class="text-emerald-400">"Welcome to Sapo Bank\n1. Deposit\n2. Withdrawal\n3. Funds transfer…"</span>,
-        <span class="text-sky-400">"interaction_type"</span>: <span class="text-emerald-400">"menu"</span>,
-        <span class="text-sky-400">"timeout"</span>: <span class="text-emerald-400">"2m"</span>
+        <span class="text-sky-400">"message"</span>: <span class="text-success-400">"Welcome to Sapo Bank\n1. Deposit\n2. Withdrawal\n3. Funds transfer…"</span>,
+        <span class="text-sky-400">"interaction_type"</span>: <span class="text-success-400">"menu"</span>,
+        <span class="text-sky-400">"timeout"</span>: <span class="text-success-400">"2m"</span>
       },
-      <span class="text-sky-400">"next"</span>: <span class="text-emerald-400">"route_main_menu"</span>
+      <span class="text-sky-400">"next"</span>: <span class="text-success-400">"route_main_menu"</span>
     },
     {
-      <span class="text-sky-400">"id"</span>: <span class="text-emerald-400">"call_deposit_api"</span>,
-      <span class="text-sky-400">"type"</span>: <span class="text-emerald-400">"command"</span>,
-      <span class="text-sky-400">"command"</span>: <span class="text-emerald-400">"http.post"</span>,
-      <span class="text-sky-400">"http_request"</span>: { <span class="text-sky-400">"url"</span>: <span class="text-emerald-400">"https://api.daccu.com/v1/deposits"</span> }
+      <span class="text-sky-400">"id"</span>: <span class="text-success-400">"call_deposit_api"</span>,
+      <span class="text-sky-400">"type"</span>: <span class="text-success-400">"command"</span>,
+      <span class="text-sky-400">"command"</span>: <span class="text-success-400">"http.post"</span>,
+      <span class="text-sky-400">"http_request"</span>: { <span class="text-sky-400">"url"</span>: <span class="text-success-400">"https://api.daccu.com/v1/deposits"</span> }
     }
   ]
 }</code></pre>

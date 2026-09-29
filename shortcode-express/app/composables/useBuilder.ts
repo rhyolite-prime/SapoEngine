@@ -87,7 +87,7 @@ export function canvasFromGraph(graph: FlowGraph): { nodes: Node<CanvasNodeData>
       targetHandle: null,
       label: edgeLabel(graph, e),
       animated: false,
-      style: isErr ? { stroke: '#f43f5e', strokeDasharray: '6 3' } : isOpt ? { stroke: '#7c3aed' } : { stroke: '#94a3b8' },
+      style: isErr ? { stroke: '#f43f5e', strokeDasharray: '6 3' } : isOpt ? { stroke: '#80004d' } : { stroke: '#94a3b8' },
       labelStyle: { fill: '#475569', fontSize: '10px' },
       labelBgStyle: { fill: '#fff' },
     }

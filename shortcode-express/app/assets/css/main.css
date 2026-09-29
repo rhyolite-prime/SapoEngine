@@ -3,20 +3,43 @@
 @theme {
   --font-sans: 'Sora', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --color-brand-50: #f5f3ff;
-  --color-brand-100: #ede9fe;
-  --color-brand-200: #ddd6fe;
-  --color-brand-300: #c4b5fd;
-  --color-brand-400: #a78bfa;
-  --color-brand-500: #8b5cf6;
-  --color-brand-600: #7c3aed;
-  --color-brand-700: #6d28d9;
-  --color-brand-800: #5b21b6;
-  --color-brand-900: #4c1d95;
-  --color-ink-950: #0b0a14;
-  --color-ink-900: #12101f;
-  --color-ink-800: #1b1830;
-  --color-ink-700: #272344;
+
+  /* --- ShortCodeExpress brand ---
+     primary   #80004d  (deep plum)   → brand-600
+     secondary #4b002b  (dark plum)   → brand-800
+     accent    #cc6699  (rose pink)   → brand-400 / --color-accent
+  */
+  --color-brand-50: #fdf2f8;
+  --color-brand-100: #fbe4ef;
+  --color-brand-200: #f5c6dd;
+  --color-brand-300: #ec9dc4;
+  --color-brand-400: #cc6699;
+  --color-brand-500: #a80f65;
+  --color-brand-600: #80004d;
+  --color-brand-700: #66003e;
+  --color-brand-800: #4b002b;
+  --color-brand-900: #3a0021;
+  --color-accent: #cc6699;
+  --color-light: #f8f9fa;
+  --color-dark: #212529;
+
+  /* success #4bb543 */
+  --color-success-50: #f0fbef;
+  --color-success-100: #ddf5db;
+  --color-success-200: #bceab8;
+  --color-success-300: #90da8b;
+  --color-success-400: #63c75e;
+  --color-success-500: #4bb543;
+  --color-success-600: #3c9a36;
+  --color-success-700: #2f7d2b;
+  --color-success-800: #256020;
+  --color-success-900: #1c4a19;
+
+  /* dark app surfaces built on #212529 */
+  --color-ink-950: #14161a;
+  --color-ink-900: #212529;
+  --color-ink-800: #2b3035;
+  --color-ink-700: #363c42;
 }
 
 html, body, #__nuxt {
@@ -24,7 +47,7 @@ html, body, #__nuxt {
 }
 
 body {
-  @apply bg-slate-100 text-slate-800 antialiased;
+  @apply bg-light text-slate-800 antialiased;
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -54,7 +77,7 @@ body {
   @apply rounded-lg border border-slate-200 shadow-lg;
   background: white;
 }
-.vue-flow__edge.selected .vue-flow__edge-path { stroke: #7c3aed; }
+.vue-flow__edge.selected .vue-flow__edge-path { stroke: #80004d; }
 
 .sce-json {
   @apply font-mono text-[11.5px] leading-relaxed;

@@ -21,7 +21,7 @@ const nav = [
   <div class="min-h-screen">
     <aside class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-ink-950 text-slate-300">
       <NuxtLink to="/" class="flex items-center gap-3 px-5 pb-5 pt-6">
-        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-fuchsia-600 shadow-lg shadow-brand-900/40">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-brand-400 shadow-lg shadow-brand-900/40">
           <svg viewBox="0 0 24 24" class="h-6 w-6 text-white" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <path d="M4 7h16M4 12h10M4 17h7"></path><circle cx="18.5" cy="15.5" r="2.5"></circle>
           </svg>
@@ -35,10 +35,10 @@ const nav = [
       <div class="mx-5 mb-4 flex items-center gap-2 rounded-lg bg-ink-900 px-3 py-2 text-xs text-slate-400 ring-1 ring-white/5">
         <BuildingOffice2Icon class="h-4 w-4 text-brand-400" />
         <span class="truncate font-medium text-slate-200">Rhyolite Prime</span>
-        <span class="ml-auto rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">Ghana</span>
+        <span class="ml-auto rounded bg-success-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-success-400">Ghana</span>
       </div>
 
-      <NuxtLink to="/onboarding" class="mx-3 mb-3 flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand-600 to-fuchsia-600 px-3 py-2.5 text-xs font-bold text-white shadow-lg shadow-brand-900/40 hover:from-brand-500 hover:to-fuchsia-500">
+      <NuxtLink to="/onboarding" class="mx-3 mb-3 flex items-center gap-2 rounded-lg bg-gradient-to-r from-brand-700 to-brand-500 px-3 py-2.5 text-xs font-bold text-white shadow-lg shadow-brand-900/40 hover:from-brand-500 hover:to-brand-400">
         <RocketLaunchIcon class="h-4 w-4" /> Go live in 5 minutes
       </NuxtLink>
 

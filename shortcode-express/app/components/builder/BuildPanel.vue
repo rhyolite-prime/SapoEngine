@@ -66,7 +66,7 @@ const timeAgo = (iso: string) => {
   return `${Math.floor(s / 86400)}d ago`
 }
 const relStyle: Record<string, string> = {
-  active: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  active: 'bg-success-50 text-success-700 ring-success-200',
   superseded: 'bg-slate-100 text-slate-500 ring-slate-200',
   'rolled-back': 'bg-rose-50 text-rose-600 ring-rose-200',
 }
@@ -78,7 +78,7 @@ const relStyle: Record<string, string> = {
     <p class="mt-1 text-xs text-slate-500">Every build serialises the canvas to a Sapo blueprint and validates it like the engine's parser. Promote a green build to make it live — roll back any time.</p>
 
     <!-- active state -->
-    <div class="mt-4 rounded-xl bg-gradient-to-r from-brand-600 to-fuchsia-600 p-4 text-white shadow-md shadow-brand-200">
+    <div class="mt-4 rounded-xl bg-gradient-to-r from-brand-700 to-brand-500 p-4 text-white shadow-md shadow-brand-200">
       <div class="flex items-center justify-between">
         <div>
           <div class="text-[10px] font-bold uppercase tracking-wider text-brand-100">Currently live</div>
@@ -102,14 +102,14 @@ const relStyle: Record<string, string> = {
     <div v-if="latestGood" class="mt-3 rounded-xl border border-slate-200 p-3.5">
       <div class="flex items-center justify-between">
         <div class="text-xs font-bold text-slate-700">Promote latest green build</div>
-        <span class="rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-700">{{ latestGood.runId }}</span>
+        <span class="rounded-full bg-success-50 px-2 py-0.5 font-mono text-[10px] font-bold text-success-700">{{ latestGood.runId }}</span>
       </div>
       <div class="mt-2 grid grid-cols-2 gap-2">
         <input v-model="releaseTag" :placeholder="`auto (next patch)`" class="rounded-lg border border-slate-200 px-2.5 py-2 font-mono text-xs focus:border-brand-400 focus:outline-none" />
         <input v-model="releaseNotes" placeholder="Release notes" class="rounded-lg border border-slate-200 px-2.5 py-2 text-xs focus:border-brand-400 focus:outline-none" />
       </div>
       <button
-        class="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-brand-600 to-fuchsia-600 py-2 text-xs font-bold text-white hover:from-brand-500 hover:to-fuchsia-500 disabled:opacity-60"
+        class="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-brand-700 to-brand-500 py-2 text-xs font-bold text-white hover:from-brand-500 hover:to-brand-400 disabled:opacity-60"
         :disabled="releasing" @click="promote(latestGood.id)"
       >
         <RocketLaunchIcon class="h-4 w-4" /> {{ releasing ? 'Deploying…' : 'Release to short code' }}
@@ -122,7 +122,7 @@ const relStyle: Record<string, string> = {
       <div v-if="!builds.length" class="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">No builds yet — hit “Build &amp; validate”.</div>
       <div v-for="b in builds" :key="b.id" class="mb-2 rounded-xl border border-slate-100 p-3">
         <div class="flex items-center gap-2">
-          <span class="flex h-5 w-5 items-center justify-center rounded-full" :class="b.status === 'succeeded' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'">
+          <span class="flex h-5 w-5 items-center justify-center rounded-full" :class="b.status === 'succeeded' ? 'bg-success-100 text-success-600' : 'bg-rose-100 text-rose-600'">
             <CheckIcon v-if="b.status === 'succeeded'" class="h-3.5 w-3.5" />
             <XMarkIcon v-else class="h-3.5 w-3.5" />
           </span>
@@ -154,8 +154,8 @@ const relStyle: Record<string, string> = {
       <div v-if="!releases.length" class="rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">No releases yet.</div>
       <div class="relative space-y-3 border-l-2 border-slate-100 pl-4">
         <div v-for="r in releases" :key="r.id" class="relative">
-          <span class="absolute -left-[22px] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-white" :class="r.status === 'active' ? 'bg-emerald-500' : r.status === 'rolled-back' ? 'bg-rose-400' : 'bg-slate-300'" />
-          <div class="rounded-xl border p-3" :class="r.status === 'active' ? 'border-emerald-200 bg-emerald-50/40' : 'border-slate-100'">
+          <span class="absolute -left-[22px] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-white" :class="r.status === 'active' ? 'bg-success-500' : r.status === 'rolled-back' ? 'bg-rose-400' : 'bg-slate-300'" />
+          <div class="rounded-xl border p-3" :class="r.status === 'active' ? 'border-success-200 bg-success-50/40' : 'border-slate-100'">
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-sm font-extrabold text-slate-800">{{ r.tag }}</span>
               <span class="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ring-1" :class="relStyle[r.status]">{{ r.status.replace('-', ' ') }}</span>

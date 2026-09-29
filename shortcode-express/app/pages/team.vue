@@ -115,7 +115,7 @@ const hue = (s: string) => [...s].reduce((a, c) => a + c.charCodeAt(0), 0) % 360
           <button class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300" @click="copyLink(inv)">
             {{ copied === inv.id ? 'Copied!' : 'Copy invite link' }}
           </button>
-          <button class="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500" @click="accept(inv)">
+          <button class="inline-flex items-center gap-1 rounded-lg bg-success-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-success-500" @click="accept(inv)">
             <ArrowPathIcon class="h-3.5 w-3.5" /> Simulate accept
           </button>
           <button class="rounded-md p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-600" title="Rescind" @click="rescind(inv)"><TrashIcon class="h-4 w-4" /></button>

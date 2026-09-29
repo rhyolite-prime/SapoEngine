@@ -33,7 +33,7 @@ async function changePlan(sc: Row, plan: string) {
   await refresh()
 }
 
-const statusColor: Record<string, string> = { active: 'bg-emerald-100 text-emerald-700 ring-emerald-200', provisioning: 'bg-amber-100 text-amber-700 ring-amber-200', suspended: 'bg-rose-100 text-rose-700 ring-rose-200' }
+const statusColor: Record<string, string> = { active: 'bg-success-100 text-success-700 ring-success-200', provisioning: 'bg-amber-100 text-amber-700 ring-amber-200', suspended: 'bg-rose-100 text-rose-700 ring-rose-200' }
 const fmt = (n: number) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n)
 const ghs = (n: number) => `GHS ${n.toLocaleString()}`
 const decorated = computed<RowFull[]>(() => (rows.value ?? []).map((r) => ({ ...r, mine: !!me && r.ownerId === me.id })))
@@ -55,7 +55,7 @@ const decorated = computed<RowFull[]>(() => (rows.value ?? []).map((r) => ({ ...
       <div v-for="sc in decorated" :key="sc.id" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200/70">
         <div class="flex items-start justify-between">
           <div class="flex items-center gap-3">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-fuchsia-600 font-mono text-lg font-bold text-white shadow-lg shadow-brand-200">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-600 to-brand-400 font-mono text-lg font-bold text-white shadow-lg shadow-brand-200">
               <SignalIcon class="h-6 w-6" />
             </div>
             <div>
@@ -88,7 +88,7 @@ const decorated = computed<RowFull[]>(() => (rows.value ?? []).map((r) => ({ ...
         </div>
 
         <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-          <div class="h-full rounded-full" :class="sc.sessionsUsed / Math.max(sc.sessionsQuota, 1) > 0.9 ? 'bg-rose-500' : sc.sessionsUsed / Math.max(sc.sessionsQuota, 1) > 0.7 ? 'bg-amber-500' : 'bg-emerald-500'"
+          <div class="h-full rounded-full" :class="sc.sessionsUsed / Math.max(sc.sessionsQuota, 1) > 0.9 ? 'bg-rose-500' : sc.sessionsUsed / Math.max(sc.sessionsQuota, 1) > 0.7 ? 'bg-amber-500' : 'bg-success-500'"
             :style="{ width: Math.min(100, (sc.sessionsUsed / Math.max(sc.sessionsQuota, 1)) * 100) + '%' }" />
         </div>
 

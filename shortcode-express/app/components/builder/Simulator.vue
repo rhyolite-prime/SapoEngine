@@ -74,16 +74,16 @@ const statusMeta = computed(() => {
     case 'idle': return { label: 'Not connected', cls: 'bg-slate-100 text-slate-500' }
     case 'running': return { label: 'Running…', cls: 'bg-sky-100 text-sky-700' }
     case 'awaiting_input': return { label: 'Waiting for reply', cls: 'bg-amber-100 text-amber-700' }
-    case 'awaiting_event': return { label: 'Waiting for event', cls: 'bg-violet-100 text-violet-700' }
-    case 'completed': return { label: 'Session completed', cls: 'bg-emerald-100 text-emerald-700' }
+    case 'awaiting_event': return { label: 'Waiting for event', cls: 'bg-brand-100 text-brand-700' }
+    case 'completed': return { label: 'Session completed', cls: 'bg-success-100 text-success-700' }
     case 'failed': return { label: 'Session failed', cls: 'bg-rose-100 text-rose-700' }
     default: return { label: status.value, cls: 'bg-slate-100 text-slate-500' }
   }
 })
 
 const traceColor: Record<string, string> = {
-  ok: 'text-slate-500', prompt: 'text-violet-600 font-semibold', api: 'text-sky-600',
-  jump: 'text-amber-600', error: 'text-rose-600', info: 'text-slate-400', end: 'text-emerald-600 font-semibold',
+  ok: 'text-slate-500', prompt: 'text-brand-600 font-semibold', api: 'text-sky-600',
+  jump: 'text-amber-600', error: 'text-rose-600', info: 'text-slate-400', end: 'text-success-600 font-semibold',
 }
 </script>
 
@@ -133,7 +133,7 @@ const traceColor: Record<string, string> = {
             @keyup.enter="send()"
           />
           <button
-            class="rounded-lg bg-emerald-500 px-3 text-white hover:bg-emerald-400 disabled:opacity-30"
+            class="rounded-lg bg-success-500 px-3 text-white hover:bg-success-400 disabled:opacity-30"
             :disabled="status !== 'awaiting_input' && status !== 'awaiting_event'" @click="send()"
           >
             <PaperAirplaneIcon class="h-4 w-4" />

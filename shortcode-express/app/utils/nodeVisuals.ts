@@ -19,20 +19,20 @@ export const KIND_ICONS: Record<string, FunctionalComponent> = {
 export interface KindVisual { ring: string; head: string; icon: string; dot: string; text: string }
 
 export const KIND_VISUALS: Record<string, KindVisual> = {
-  violet: { ring: 'ring-violet-200', head: 'bg-violet-50', icon: 'text-violet-600', dot: 'bg-violet-500', text: 'text-violet-700' },
+  brand: { ring: 'ring-brand-200', head: 'bg-brand-50', icon: 'text-brand-600', dot: 'bg-brand-500', text: 'text-brand-700' },
   sky: { ring: 'ring-sky-200', head: 'bg-sky-50', icon: 'text-sky-600', dot: 'bg-sky-500', text: 'text-sky-700' },
   amber: { ring: 'ring-amber-200', head: 'bg-amber-50', icon: 'text-amber-600', dot: 'bg-amber-500', text: 'text-amber-700' },
-  emerald: { ring: 'ring-emerald-200', head: 'bg-emerald-50', icon: 'text-emerald-600', dot: 'bg-emerald-500', text: 'text-emerald-700' },
+  success: { ring: 'ring-success-200', head: 'bg-success-50', icon: 'text-success-600', dot: 'bg-success-500', text: 'text-success-700' },
   slate: { ring: 'ring-slate-200', head: 'bg-slate-50', icon: 'text-slate-600', dot: 'bg-slate-500', text: 'text-slate-700' },
   rose: { ring: 'ring-rose-200', head: 'bg-rose-50', icon: 'text-rose-600', dot: 'bg-rose-500', text: 'text-rose-700' },
 }
 
 export function kindVisual(kind: string): KindVisual {
   const groups: Record<string, string> = {
-    menu: 'violet', input: 'violet', pin: 'violet', display: 'violet', await_event: 'violet',
+    menu: 'brand', input: 'brand', pin: 'brand', display: 'brand', await_event: 'brand',
     http: 'sky', subflow: 'sky', event: 'sky',
     if: 'amber', choice: 'amber', try: 'amber', script: 'amber',
-    assign: 'emerald', transform: 'emerald', query: 'emerald',
+    assign: 'success', transform: 'success', query: 'success',
     wait: 'slate', loop: 'slate', break: 'slate', parallel: 'slate', schedule: 'slate',
     end_success: 'rose', end_failure: 'rose',
   }

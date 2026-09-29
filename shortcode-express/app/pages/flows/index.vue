@@ -90,7 +90,7 @@ const ago = (iso: string) => {
           <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-100">
             <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h7" /><circle cx="18.5" cy="15.5" r="2.5" /></svg>
           </div>
-          <span v-if="f.activeRelease" class="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+          <span v-if="f.activeRelease" class="rounded-full bg-success-50 px-2.5 py-1 text-[11px] font-bold text-success-700 ring-1 ring-success-200">
             ● {{ f.activeRelease.tag }}
           </span>
           <span v-else class="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200">draft</span>
@@ -101,7 +101,7 @@ const ago = (iso: string) => {
           <span v-if="f.shortcode" class="font-mono font-semibold text-slate-600">{{ f.shortcode }}</span>
           <span>{{ f.nodeCount }} nodes</span>
           <span>{{ f.buildCount }} builds</span>
-          <span v-if="f.lastBuildRunId" :class="f.lastBuildStatus === 'succeeded' ? 'text-emerald-600' : 'text-rose-600'">{{ f.lastBuildStatus === 'succeeded' ? '✓' : '✗' }} {{ f.lastBuildRunId }}</span>
+          <span v-if="f.lastBuildRunId" :class="f.lastBuildStatus === 'succeeded' ? 'text-success-600' : 'text-rose-600'">{{ f.lastBuildStatus === 'succeeded' ? '✓' : '✗' }} {{ f.lastBuildRunId }}</span>
           <span class="ml-auto">{{ ago(f.updatedAt) }}</span>
         </div>
         <div class="absolute bottom-4 right-4 flex gap-1 opacity-0 transition group-hover:opacity-100">

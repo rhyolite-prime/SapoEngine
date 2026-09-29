@@ -20,7 +20,7 @@ interface BillingData {
 
 const { data } = await useFetch<BillingData>('/api/billing')
 const money = (n: number) => `GHS ${n.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-const statusStyle: Record<string, string> = { paid: 'bg-emerald-100 text-emerald-700', due: 'bg-amber-100 text-amber-700', overdue: 'bg-rose-100 text-rose-700' }
+const statusStyle: Record<string, string> = { paid: 'bg-success-100 text-success-700', due: 'bg-amber-100 text-amber-700', overdue: 'bg-rose-100 text-rose-700' }
 const fmt = (n: number) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n)
 
 const invoiceOption = computed(() => ({
@@ -28,7 +28,7 @@ const invoiceOption = computed(() => ({
   grid: { left: 8, right: 8, top: 16, bottom: 8, containLabel: true },
   xAxis: { type: 'category' as const, data: (data.value?.invoices ?? []).slice().reverse().map((i) => i.period) },
   yAxis: { type: 'value' as const, splitNumber: 3 },
-  series: [{ type: 'bar' as const, data: (data.value?.invoices ?? []).slice().reverse().map((i) => i.total), itemStyle: { color: '#7c3aed', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 40 }],
+  series: [{ type: 'bar' as const, data: (data.value?.invoices ?? []).slice().reverse().map((i) => i.total), itemStyle: { color: '#80004d', borderRadius: [4, 4, 0, 0] }, barMaxWidth: 40 }],
 }))
 </script>
 
@@ -50,7 +50,7 @@ const invoiceOption = computed(() => ({
         <div class="mt-2 text-3xl font-extrabold" :class="(data?.summary.overageTotal ?? 0) > 0 ? 'text-amber-600' : 'text-slate-900'">{{ money(data?.summary.overageTotal ?? 0) }}</div>
         <div class="mt-1 text-xs text-slate-500">Charged at each plan's per-session rate beyond quota</div>
       </div>
-      <div class="rounded-2xl bg-gradient-to-br from-brand-600 to-fuchsia-600 p-5 text-white shadow-lg shadow-brand-200">
+      <div class="rounded-2xl bg-gradient-to-br from-brand-700 to-brand-500 p-5 text-white shadow-lg shadow-brand-200">
         <div class="flex items-center justify-between"><span class="text-xs font-semibold uppercase tracking-wide text-brand-100">Projected next invoice</span><DocumentTextIcon class="h-5 w-5 text-brand-200" /></div>
         <div class="mt-2 text-3xl font-extrabold">{{ money(data?.summary.projectedNextInvoice ?? 0) }}</div>
         <div class="mt-1 text-xs text-brand-100">Billed to {{ data?.business.billingEmail }}</div>

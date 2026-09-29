@@ -49,9 +49,9 @@ const rowHandles = computed(() => outputs.value.filter((o) => o.handle.startsWit
 
 const handleColor = (hk: string) =>
   hk === 'error' || hk === 'catch' ? '#f43f5e'
-    : hk === 'then' || hk === 'body' ? '#10b981'
+    : hk === 'then' || hk === 'body' ? '#4bb543'
       : hk === 'else' || hk === 'default' ? '#f59e0b'
-        : hk.startsWith('option:') || hk.startsWith('case:') || hk.startsWith('branch:') ? '#7c3aed'
+        : hk.startsWith('option:') || hk.startsWith('case:') || hk.startsWith('branch:') ? '#80004d'
           : '#64748b'
 
 const typeLabel = computed(() => {

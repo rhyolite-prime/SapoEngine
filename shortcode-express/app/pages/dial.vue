@@ -98,8 +98,8 @@ const screenText = computed(() => session.value?.screen.join('\n\n────\n
 const sessionLive = computed(() => !!session.value && ['awaiting_input', 'awaiting_event', 'running'].includes(session.value.status))
 const publicVars = computed(() => Object.fromEntries(Object.entries(session.value?.vars ?? {}).filter(([k]) => ['msisdn', 'network', 'business', 'code', 'balance', 'account_name', 'bundle_name', 'amount', 'confirm', 'choice', 'bundle_choice', 'transaction_id', 'payment_status', 'input', 'back'].includes(k))))
 const eventColor: Record<string, string> = {
-  'payment.succeeded': 'bg-emerald-500', 'session.started': 'bg-brand-500', 'session.completed': 'bg-teal-500',
-  'session.failed': 'bg-rose-500', 'flow.http_request': 'bg-sky-500', 'shortcode.assigned': 'bg-fuchsia-500',
+  'payment.succeeded': 'bg-success-500', 'session.started': 'bg-brand-500', 'session.completed': 'bg-success-600',
+  'session.failed': 'bg-rose-500', 'flow.http_request': 'bg-sky-500', 'shortcode.assigned': 'bg-brand-400',
   'sessions.topped_up': 'bg-amber-500', 'test.ping': 'bg-slate-400',
 }
 </script>
@@ -127,27 +127,27 @@ const eventColor: Record<string, string> = {
           </div>
 
           <!-- screen -->
-          <div class="relative min-h-[240px] rounded-3xl bg-gradient-to-b from-[#0b3d2e] to-[#062a1f] p-4 font-mono text-[13px] leading-snug text-emerald-200 ring-1 ring-emerald-900/50">
-            <div class="flex items-center justify-between text-[10px] text-emerald-500/70">
+          <div class="relative min-h-[240px] rounded-3xl bg-gradient-to-b from-[#0b3d2e] to-[#062a1f] p-4 font-mono text-[13px] leading-snug text-success-200 ring-1 ring-success-900/50">
+            <div class="flex items-center justify-between text-[10px] text-success-500/70">
               <span>USSD RUNNER</span>
               <span class="flex items-center gap-1">
-                <span v-if="sessionLive" class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400"></span>
+                <span v-if="sessionLive" class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-success-400"></span>
                 {{ session ? session.status.replace('_', ' ') : 'ready' }}
-                <span v-if="callElapsed !== null" class="ml-1 text-emerald-400">{{ callElapsed }}s</span>
+                <span v-if="callElapsed !== null" class="ml-1 text-success-400">{{ callElapsed }}s</span>
               </span>
             </div>
 
             <pre v-if="session" class="mt-2 max-h-[290px] overflow-y-auto whitespace-pre-wrap break-words">{{ screenText || '(no screen yet)' }}</pre>
             <div v-else-if="dialing" class="mt-10 text-center">
-              <svg class="mx-auto h-8 w-8 animate-spin text-emerald-400" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25" /><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" /></svg>
-              <p class="mt-3 text-xs text-emerald-500">Dialing {{ dialInput }}…</p>
+              <svg class="mx-auto h-8 w-8 animate-spin text-success-400" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25" /><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" /></svg>
+              <p class="mt-3 text-xs text-success-500">Dialing {{ dialInput }}…</p>
             </div>
-            <div v-else class="mt-10 text-center text-xs text-emerald-600/70">
-              <p class="font-bold text-emerald-500">{{ dialInput || 'Enter a short code' }}</p>
+            <div v-else class="mt-10 text-center text-xs text-success-600/70">
+              <p class="font-bold text-success-500">{{ dialInput || 'Enter a short code' }}</p>
               <p class="mt-2">Press the green key to dial.</p>
             </div>
 
-            <div v-if="session?.prompt" class="absolute inset-x-3 bottom-3 rounded-xl bg-black/40 px-3 py-2 text-[10px] text-emerald-500 ring-1 ring-emerald-900/60">
+            <div v-if="session?.prompt" class="absolute inset-x-3 bottom-3 rounded-xl bg-black/40 px-3 py-2 text-[10px] text-success-500 ring-1 ring-success-900/60">
               waiting for {{ session.prompt.interactionType }} — press a key below
             </div>
           </div>
@@ -160,7 +160,7 @@ const eventColor: Record<string, string> = {
             <button v-for="k in keypad" :key="k" class="rounded-2xl bg-white/[0.07] py-3 font-mono text-lg font-bold text-slate-100 transition hover:bg-white/15 active:scale-95" @click="press(k)">{{ k }}</button>
             <button class="flex items-center justify-center rounded-2xl bg-rose-500/80 py-3 text-xs font-bold text-white transition hover:bg-rose-500 active:scale-95" @click="hangup">END</button>
             <button class="flex items-center justify-center rounded-2xl py-3 text-white transition active:scale-95"
-              :class="dialing ? 'bg-emerald-500/40' : 'bg-emerald-500 hover:bg-emerald-400'" :disabled="dialing" @click="dial">
+              :class="dialing ? 'bg-success-500/40' : 'bg-success-500 hover:bg-success-400'" :disabled="dialing" @click="dial">
               <svg v-if="dialing" class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25" /><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" /></svg>
               <svg v-else class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24c1.12.37 2.33.57 3.57.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.85 21 3 13.15 3 3.5a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.24.2 2.45.57 3.57a1 1 0 0 1-.25 1.02l-2.2 2.2Z" /></svg>
             </button>
@@ -215,8 +215,8 @@ const eventColor: Record<string, string> = {
           <div class="flex items-center justify-between">
             <h2 class="flex items-center gap-2 text-sm font-bold text-slate-900">
               <ArrowPathRoundedSquareIcon class="h-4 w-4 text-brand-600" /> Webhook events
-              <span v-if="sessionLive" class="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600">
-                <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></span> LIVE
+              <span v-if="sessionLive" class="flex items-center gap-1 rounded-full bg-success-50 px-2 py-0.5 text-[10px] font-bold text-success-600">
+                <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-success-500"></span> LIVE
               </span>
             </h2>
             <NuxtLink to="/developers#webhooks" class="text-[11px] font-semibold text-brand-600 hover:underline">configure →</NuxtLink>
@@ -227,7 +227,7 @@ const eventColor: Record<string, string> = {
               <div class="flex items-center gap-2">
                 <span class="h-2 w-2 shrink-0 rounded-full" :class="eventColor[d.event] ?? 'bg-slate-400'"></span>
                 <span class="font-mono text-xs font-bold text-slate-800">{{ d.event }}</span>
-                <span class="rounded px-1.5 py-0.5 text-[10px] font-bold" :class="d.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'">{{ d.status }}</span>
+                <span class="rounded px-1.5 py-0.5 text-[10px] font-bold" :class="d.status === 'delivered' ? 'bg-success-100 text-success-700' : 'bg-rose-100 text-rose-700'">{{ d.status }}</span>
                 <span class="ml-auto text-[10px] text-slate-400">{{ new Date(d.createdAt).toLocaleTimeString() }}</span>
               </div>
               <pre class="mt-1.5 max-h-24 overflow-auto whitespace-pre-wrap break-all text-[10.5px] leading-relaxed text-slate-500">{{ JSON.stringify(d.payload.data, null, 1) }}</pre>

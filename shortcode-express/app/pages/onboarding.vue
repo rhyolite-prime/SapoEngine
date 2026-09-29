@@ -124,7 +124,7 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
     </div>
 
     <!-- completion banner -->
-    <div v-if="allDone && status?.shortcode" class="mb-8 overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 p-6 text-white shadow-lg">
+    <div v-if="allDone && status?.shortcode" class="mb-8 overflow-hidden rounded-2xl bg-gradient-to-r from-success-600 to-success-400 p-6 text-white shadow-lg">
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div class="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-white/70"><SparklesIcon class="h-4 w-4" /> You're live</div>
@@ -132,7 +132,7 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
           <div class="mt-1 text-sm text-white/85">{{ status.shortcode.flowName }} · {{ status.shortcode.sessionsQuota.toLocaleString() }} sessions ready</div>
         </div>
         <div class="flex gap-2">
-          <NuxtLink :to="`/dial?code=${status.shortcode.code}`" class="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 shadow hover:bg-emerald-50">
+          <NuxtLink :to="`/dial?code=${status.shortcode.code}`" class="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-success-700 shadow hover:bg-success-50">
             <DevicePhoneMobileIcon class="h-4 w-4" /> Dial it
           </NuxtLink>
           <NuxtLink v-if="status.shortcode.flowId" :to="`/builder/${status.shortcode.flowId}`" class="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2.5 text-sm font-bold text-white ring-1 ring-white/40 hover:bg-white/25">
@@ -144,16 +144,16 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
 
     <div class="space-y-4">
       <!-- STEP 1 — account + keys -->
-      <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 transition" :class="stepDone.account ? 'ring-emerald-100' : 'ring-slate-200'">
+      <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 transition" :class="stepDone.account ? 'ring-success-100' : 'ring-slate-200'">
         <div class="flex items-start gap-4">
           <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold"
-            :class="stepDone.account ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'">
+            :class="stepDone.account ? 'bg-success-100 text-success-600' : 'bg-amber-100 text-amber-600'">
             <CheckCircleIcon v-if="stepDone.account" class="h-5 w-5" /><span v-else>1</span>
           </div>
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
               <h2 class="font-bold text-slate-900">Account &amp; API keys</h2>
-              <span v-if="stepDone.account" class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-600">DONE</span>
+              <span v-if="stepDone.account" class="rounded-full bg-success-50 px-2 py-0.5 text-[11px] font-bold text-success-600">DONE</span>
             </div>
             <p class="mt-1 text-sm text-slate-500">Your workspace is ready and an <span class="font-mono text-xs">sk_live_…</span> key was generated at signup.</p>
             <div class="mt-3 flex flex-wrap gap-2">
@@ -169,22 +169,22 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
       </div>
 
       <!-- STEP 2 — buy a short code -->
-      <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 transition" :class="stepDone.code ? 'ring-emerald-100' : 'ring-slate-200'">
+      <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 transition" :class="stepDone.code ? 'ring-success-100' : 'ring-slate-200'">
         <div class="flex items-start gap-4">
           <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold"
-            :class="stepDone.code ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'">
+            :class="stepDone.code ? 'bg-success-100 text-success-600' : 'bg-amber-100 text-amber-600'">
             <CheckCircleIcon v-if="stepDone.code" class="h-5 w-5" /><span v-else>2</span>
           </div>
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
               <h2 class="font-bold text-slate-900">Get your short code</h2>
-              <span v-if="stepDone.code" class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-600">LIVE</span>
+              <span v-if="stepDone.code" class="rounded-full bg-success-50 px-2 py-0.5 text-[11px] font-bold text-success-600">LIVE</span>
             </div>
 
             <div v-if="status?.shortcode" class="mt-3 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-100">
               <div class="flex flex-wrap items-center gap-3">
                 <span class="font-mono text-xl font-extrabold text-slate-900">{{ status.shortcode.code }}</span>
-                <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold uppercase text-emerald-700">{{ status.shortcode.status }}</span>
+                <span class="rounded-full bg-success-100 px-2 py-0.5 text-[11px] font-bold uppercase text-success-700">{{ status.shortcode.status }}</span>
                 <span class="text-xs text-slate-500">assigned by {{ status.shortcode.assignedBy }} · {{ status.shortcode.network }}</span>
               </div>
               <p class="mt-2 text-sm text-slate-600">
@@ -217,8 +217,8 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
                   <span class="text-sm font-bold text-slate-900">I'll pick my own code</span>
                   <input v-model="customCode" placeholder="*714*42#" @click.stop
                     class="mt-2 w-full rounded-lg border px-3 py-2 font-mono text-lg font-extrabold outline-none"
-                    :class="availability?.available === false ? 'border-rose-300 text-rose-700' : availability?.available ? 'border-emerald-400 text-emerald-700' : 'border-slate-200 text-slate-900'" />
-                  <p class="mt-1.5 flex items-center gap-1 text-xs" :class="availability?.available === false ? 'text-rose-600' : availability?.available ? 'text-emerald-600' : 'text-slate-500'">
+                    :class="availability?.available === false ? 'border-rose-300 text-rose-700' : availability?.available ? 'border-success-400 text-success-700' : 'border-slate-200 text-slate-900'" />
+                  <p class="mt-1.5 flex items-center gap-1 text-xs" :class="availability?.available === false ? 'text-rose-600' : availability?.available ? 'text-success-600' : 'text-slate-500'">
                     <svg v-if="checking" class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25" /><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" /></svg>
                     <CheckCircleIcon v-else-if="availability?.available" class="h-3.5 w-3.5" />
                     <XCircleIcon v-else-if="availability?.available === false" class="h-3.5 w-3.5" />
@@ -277,10 +277,10 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
       </div>
 
       <!-- STEP 3 — sessions -->
-      <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 transition" :class="status?.shortcode ? 'ring-emerald-100' : 'ring-slate-200'">
+      <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 transition" :class="status?.shortcode ? 'ring-success-100' : 'ring-slate-200'">
         <div class="flex items-start gap-4">
           <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold"
-            :class="status?.shortcode ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'">
+            :class="status?.shortcode ? 'bg-success-100 text-success-600' : 'bg-slate-100 text-slate-400'">
             <CheckCircleIcon v-if="status?.shortcode" class="h-5 w-5" /><span v-else>3</span>
           </div>
           <div class="min-w-0 flex-1">
@@ -307,10 +307,10 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
       </div>
 
       <!-- STEP 4 — dial live -->
-      <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 transition" :class="stepDone.dial ? 'ring-emerald-100' : 'ring-slate-200'">
+      <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 transition" :class="stepDone.dial ? 'ring-success-100' : 'ring-slate-200'">
         <div class="flex items-start gap-4">
           <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold"
-            :class="stepDone.dial ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'">
+            :class="stepDone.dial ? 'bg-success-100 text-success-600' : 'bg-slate-100 text-slate-400'">
             <CheckCircleIcon v-if="stepDone.dial" class="h-5 w-5" /><span v-else>4</span>
           </div>
           <div class="min-w-0 flex-1">
