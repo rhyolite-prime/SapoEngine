@@ -281,6 +281,8 @@ export interface User {
   avatarHue: number
   title: string
   company?: string
+  /** how the workspace is used — picked during onboarding */
+  useCase?: 'merchant' | 'aggregator'
   createdAt?: string
   apiKeys?: ApiKey[]
   webhook?: WebhookEndpoint

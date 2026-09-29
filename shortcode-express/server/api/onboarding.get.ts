@@ -14,6 +14,7 @@ export default defineEventHandler((event) => {
 
   return {
     user: { id: user.id, name: user.name, company: user.company ?? '', createdAt: user.createdAt },
+    useCase: user.useCase ?? null,
     hasKey: (user.apiKeys ?? []).some((k) => !k.revoked),
     webhookConfigured: !!user.webhook?.url,
     shortcode: firstCode

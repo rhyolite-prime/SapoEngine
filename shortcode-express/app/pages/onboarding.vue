@@ -3,6 +3,7 @@ import {
   CheckCircleIcon, KeyIcon, SignalIcon, BoltSlashIcon, DevicePhoneMobileIcon,
   ArrowPathIcon, ArrowRightIcon, SparklesIcon, WrenchScrewdriverIcon, ClockIcon, XCircleIcon,
   ArrowsRightLeftIcon, LinkIcon, ClipboardDocumentIcon, ExclamationTriangleIcon,
+  BuildingStorefrontIcon, UsersIcon,
 } from '@heroicons/vue/24/outline'
 import type { Plan, SessionPack } from '~/../shared/types'
 
@@ -11,6 +12,7 @@ useHead({ title: 'Go live in 5 minutes · ShortCodeExpress' })
 
 interface OnboardingStatus {
   user: { id: string; name: string; company: string; createdAt: string }
+  useCase: 'merchant' | 'aggregator' | null
   hasKey: boolean
   webhookConfigured: boolean
   shortcode: null | {
@@ -42,6 +44,24 @@ async function refresh() {
   if (!suggested.value) await shuffleCode()
 }
 await refresh()
+
+// --- step 1: how the platform will be used -------------------------------
+const savingUseCase = ref(false)
+const useCaseError = ref('')
+const showUseCasePicker = ref(false)
+const isAggregator = computed(() => status.value?.useCase === 'aggregator')
+
+async function chooseUseCase(kind: 'merchant' | 'aggregator') {
+  useCaseError.value = ''
+  savingUseCase.value = true
+  try {
+    const r = await $api<{ useCase: 'merchant' | 'aggregator' }>('/api/onboarding/use-case', { method: 'POST', body: { useCase: kind } })
+    if (status.value) status.value.useCase = r.useCase
+    showUseCasePicker.value = false
+  } catch (e: unknown) {
+    useCaseError.value = (e as { data?: { statusMessage?: string } }).data?.statusMessage ?? 'Could not save your choice — try again'
+  } finally { savingUseCase.value = false }
+}
 
 async function shuffleCode() {
   try { suggested.value = (await $api<{ code: string }>('/api/shortcodes/suggest')).code } catch { suggested.value = '' }
@@ -140,13 +160,14 @@ const portApproved = computed(() => !!portInfo.value?.approvedAt)
 const portRejected = computed(() => !!portInfo.value?.rejectedAt)
 
 const stepDone = computed(() => ({
+  useCase: !!status.value?.useCase,
   account: !!status.value?.hasKey,
   code: !!status.value?.shortcode,
   topup: !!status.value?.shortcode, // optional step: done once you have a code
   dial: !!status.value?.shortcode?.hasRelease && status.value.shortcode.status === 'active',
 }))
 
-const allDone = computed(() => stepDone.value.dial)
+const allDone = computed(() => stepDone.value.dial && stepDone.value.useCase)
 const ghs = (n: number) => `GHS ${n.toLocaleString()}`
 </script>
 
@@ -184,12 +205,74 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
     </div>
 
     <div class="space-y-4">
-      <!-- STEP 1 — account + keys -->
+      <!-- STEP 1 — merchant or aggregator -->
+      <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 transition" :class="stepDone.useCase ? 'ring-success-100' : 'ring-slate-200'">
+        <div class="flex items-start gap-4">
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold"
+            :class="stepDone.useCase ? 'bg-success-100 text-success-600' : 'bg-amber-100 text-amber-600'">
+            <CheckCircleIcon v-if="stepDone.useCase" class="h-5 w-5" /><span v-else>1</span>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="font-bold text-slate-900">How will you use ShortCodeExpress?</h2>
+              <span v-if="stepDone.useCase" class="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-brand-700">
+                {{ isAggregator ? 'Aggregator' : 'Business merchant' }}
+              </span>
+              <button v-if="stepDone.useCase && !showUseCasePicker" class="text-xs font-semibold text-brand-600 hover:underline" @click="showUseCasePicker = true">
+                Change
+              </button>
+            </div>
+
+            <!-- picker -->
+            <div v-if="!stepDone.useCase || showUseCasePicker" class="mt-4 grid gap-3 sm:grid-cols-2">
+              <button :disabled="savingUseCase"
+                class="group rounded-xl border-2 p-5 text-left transition disabled:opacity-50"
+                :class="status?.useCase === 'merchant' ? 'border-brand-500 bg-brand-50/60' : 'border-slate-200 hover:border-brand-300 hover:bg-brand-50/30'"
+                @click="chooseUseCase('merchant')">
+                <div class="flex items-center gap-2.5">
+                  <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-100 text-brand-700"><BuildingStorefrontIcon class="h-5 w-5" /></span>
+                  <span class="text-sm font-bold text-slate-900">Business merchant</span>
+                </div>
+                <p class="mt-2.5 text-xs leading-relaxed text-slate-500">
+                  I run a business and want USSD for <b class="text-slate-700">my own services</b> — menus, payments and alerts under my own short code.
+                </p>
+                <p class="mt-2 text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">Shops · fintechs · schools · churches · SACCOs</p>
+              </button>
+
+              <button :disabled="savingUseCase"
+                class="group rounded-xl border-2 p-5 text-left transition disabled:opacity-50"
+                :class="status?.useCase === 'aggregator' ? 'border-brand-500 bg-brand-50/60' : 'border-slate-200 hover:border-brand-300 hover:bg-brand-50/30'"
+                @click="chooseUseCase('aggregator')">
+                <div class="flex items-center gap-2.5">
+                  <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-100 text-brand-700"><UsersIcon class="h-5 w-5" /></span>
+                  <span class="text-sm font-bold text-slate-900">Aggregator</span>
+                </div>
+                <p class="mt-2.5 text-xs leading-relaxed text-slate-500">
+                  I build and manage USSD services <b class="text-slate-700">for client businesses</b> — many short codes, flows and quotas from one workspace.
+                </p>
+                <p class="mt-2 text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">Agencies · resellers · platforms serving many merchants</p>
+              </button>
+            </div>
+
+            <!-- summary once chosen -->
+            <p v-else-if="isAggregator" class="mt-1 text-sm text-slate-500">
+              Aggregator mode: every short code you add belongs to a client — each with its own flow, quota and webhooks. Invite teammates on the Team page to manage them together.
+            </p>
+            <p v-else class="mt-1 text-sm text-slate-500">
+              Merchant mode: your codes run your own services end to end — build a flow, release it, and take payments.
+            </p>
+
+            <p v-if="useCaseError" class="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">{{ useCaseError }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2 — account + keys -->
       <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 transition" :class="stepDone.account ? 'ring-success-100' : 'ring-slate-200'">
         <div class="flex items-start gap-4">
           <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold"
             :class="stepDone.account ? 'bg-success-100 text-success-600' : 'bg-amber-100 text-amber-600'">
-            <CheckCircleIcon v-if="stepDone.account" class="h-5 w-5" /><span v-else>1</span>
+            <CheckCircleIcon v-if="stepDone.account" class="h-5 w-5" /><span v-else>2</span>
           </div>
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
@@ -214,13 +297,14 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
         <div class="flex items-start gap-4">
           <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold"
             :class="stepDone.code ? 'bg-success-100 text-success-600' : 'bg-amber-100 text-amber-600'">
-            <CheckCircleIcon v-if="stepDone.code" class="h-5 w-5" /><span v-else>2</span>
+            <CheckCircleIcon v-if="stepDone.code" class="h-5 w-5" /><span v-else>3</span>
           </div>
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
-              <h2 class="font-bold text-slate-900">Get your short code</h2>
+              <h2 class="font-bold text-slate-900">{{ isAggregator ? "Add your first client's short code" : 'Get your short code' }}</h2>
               <span v-if="stepDone.code" class="rounded-full bg-success-50 px-2 py-0.5 text-[11px] font-bold text-success-600">LIVE</span>
             </div>
+            <p v-if="isAggregator" class="mt-1 text-xs text-slate-400">Each purchase below provisions one client code — repeat for every client you onboard.</p>
 
             <div v-if="status?.shortcode" class="mt-3 space-y-3">
               <div class="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-100">
@@ -322,7 +406,7 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
                   :class="mode === 'port' ? 'border-brand-500 bg-brand-50/60' : 'border-slate-200 hover:border-slate-300'" @click="mode = 'port'">
                   <div class="flex items-center gap-1.5">
                     <ArrowsRightLeftIcon class="h-4 w-4 text-brand-600" />
-                    <span class="text-sm font-bold text-slate-900">Port a code I own</span>
+                    <span class="text-sm font-bold text-slate-900">{{ isAggregator ? "Port a client's code" : 'Port a code I own' }}</span>
                   </div>
                   <p class="mt-2 text-xs leading-relaxed text-slate-500">
                     Bring your existing code from another provider. Flat <b class="text-slate-700">GHS {{ portFlat }}/month</b> — unlimited sessions, no packs.
@@ -356,7 +440,7 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
               <!-- service details -->
               <div class="grid gap-3" :class="porting ? 'sm:grid-cols-2' : 'sm:grid-cols-2'">
                 <label class="block">
-                  <span class="mb-1 block text-xs font-semibold text-slate-600">Service name</span>
+                  <span class="mb-1 block text-xs font-semibold text-slate-600">{{ isAggregator ? 'Client service name' : 'Service name' }}</span>
                   <input v-model="label" placeholder="Kofi Airtime" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
                 </label>
                 <label class="block">
@@ -425,7 +509,7 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
         <div class="flex items-start gap-4">
           <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold"
             :class="status?.shortcode ? 'bg-success-100 text-success-600' : 'bg-slate-100 text-slate-400'">
-            <CheckCircleIcon v-if="status?.shortcode" class="h-5 w-5" /><span v-else>3</span>
+            <CheckCircleIcon v-if="status?.shortcode" class="h-5 w-5" /><span v-else>4</span>
           </div>
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
@@ -441,6 +525,7 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
               Every dial counts against the quota — top up in one click when you need more.
             </p>
             <p v-else class="mt-1 text-sm text-slate-500">Your plan's sessions arrive with the code. Buy extra packs anytime via webcheckout.</p>
+            <p v-if="isAggregator" class="mt-1 text-xs text-slate-400">Quotas are per short code — every client's code has its own counter, so one busy client can't drain the others.</p>
             <div v-if="!status?.shortcode?.flatMonthly" class="mt-3 grid gap-2 sm:grid-cols-4">
               <div v-for="pk in packs" :key="pk.id" class="rounded-xl border border-slate-200 p-3">
                 <div class="text-sm font-bold text-slate-900">{{ pk.sessions.toLocaleString() }}</div>
@@ -459,10 +544,10 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
         <div class="flex items-start gap-4">
           <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold"
             :class="stepDone.dial ? 'bg-success-100 text-success-600' : 'bg-slate-100 text-slate-400'">
-            <CheckCircleIcon v-if="stepDone.dial" class="h-5 w-5" /><span v-else>4</span>
+            <CheckCircleIcon v-if="stepDone.dial" class="h-5 w-5" /><span v-else>5</span>
           </div>
           <div class="min-w-0 flex-1">
-            <h2 class="font-bold text-slate-900">Dial your code — live</h2>
+            <h2 class="font-bold text-slate-900">{{ isAggregator ? "Dial your client's code — live" : 'Dial your code — live' }}</h2>
             <p class="mt-1 text-sm text-slate-500">
               Your starter flow is deployed: dynamic menus (<span class="font-mono text-xs">${{ '{' }}balance{{ '}' }}</span> templating), a live API call and a MoMo charge that fires
               a <span class="font-mono text-xs">payment.succeeded</span> webhook. Navigate it on the keypad like a real subscriber.
