@@ -202,17 +202,36 @@ export interface Plan {
   features: string[]
 }
 
+/** A port-in request: the customer pays, then shares `interactionUrl` with
+ *  their current (donor) provider, who approves/rejects via that URL. */
+export interface PortRequest {
+  /** donor provider name, e.g. "Hubtel" */
+  provider: string
+  /** secret token of the provider interaction URL (/port/:token) */
+  token: string
+  requestedAt: string
+  approvedAt?: string
+  rejectedAt?: string
+  rejectedReason?: string
+}
+
 export interface ShortCode {
   id: string
   code: string // *920*108#
   label: string
   network: string
-  status: 'active' | 'provisioning' | 'suspended'
+  status: 'active' | 'provisioning' | 'suspended' | 'porting'
   plan: PlanId
   sessionsUsed: number
   sessionsQuota: number
   createdAt: string
   flowId?: string
+  ownerId?: string
+  assignedBy?: 'user' | 'system' | 'port'
+  setupFeePaid?: number
+  /** present on ported codes: flat monthly billing, unlimited sessions */
+  flatMonthly?: number
+  port?: PortRequest
 }
 
 export type MemberRole = 'owner' | 'editor' | 'viewer'
@@ -282,6 +301,7 @@ export type WebhookEventName =
   | 'test.ping'
   | 'payment.succeeded'
   | 'shortcode.assigned'
+  | 'shortcode.ported'
   | 'sessions.topped_up'
   | 'session.started'
   | 'session.completed'
@@ -317,7 +337,7 @@ export interface CheckoutItem {
   amount: number
 }
 
-export type CheckoutKind = 'shortcode' | 'topup'
+export type CheckoutKind = 'shortcode' | 'topup' | 'port'
 
 export interface CheckoutSession {
   id: string
@@ -327,7 +347,7 @@ export interface CheckoutSession {
   items: CheckoutItem[]
   total: number
   currency: 'GHS'
-  /** shortcode: { mode, code?, label, network, planId } · topup: { shortcodeId, packId, sessions } */
+  /** shortcode: { mode, code?, label, network, planId } · topup: { shortcodeId, packId, sessions } · port: { code, label, network, provider } */
   meta: Record<string, unknown>
   createdAt: string
   paidAt?: string

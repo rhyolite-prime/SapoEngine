@@ -43,6 +43,12 @@ export function findShortcodeByCode(code: string): ShortCode | null {
   return db.shortcodes.find((s) => normalizeCode(s.code) === wanted) ?? null
 }
 
+/** Find a shortcode by its (secret) provider-interaction token */
+export function findShortcodeByPortToken(token: string): ShortCode | undefined {
+  if (!token) return undefined
+  return useDb().shortcodes.find((s) => s.port?.token === token)
+}
+
 export function activeBlueprintFor(shortcode: ShortCode): { flow: Flow; blueprint: Record<string, unknown> } | null {
   const db = useDb()
   const flow = db.flows.find((f) => f.id === shortcode.flowId)
@@ -168,9 +174,15 @@ export async function startSession(event: Parameters<typeof getCookie>[0], opts:
   const { shortcode } = opts
 
   if (shortcode.status !== 'active') {
+    if (shortcode.status === 'porting') {
+      throw createError({
+        statusCode: 409,
+        statusMessage: `${shortcode.code} is still porting — we're waiting for ${shortcode.port?.provider ?? 'your current provider'} to release it. Share your porting link with them.`,
+      })
+    }
     throw createError({ statusCode: 409, statusMessage: `Short code ${shortcode.code} is ${shortcode.status} — activate it first` })
   }
-  if (shortcode.sessionsUsed >= shortcode.sessionsQuota) {
+  if (!shortcode.port && shortcode.sessionsUsed >= shortcode.sessionsQuota) {
     throw createError({
       statusCode: 402,
       statusMessage: `Session quota exhausted for ${shortcode.code} (${shortcode.sessionsQuota.toLocaleString()} sessions). Top up to keep serving.`,

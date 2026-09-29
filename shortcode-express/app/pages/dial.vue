@@ -11,7 +11,7 @@ interface DialResponse {
   screen: string[]
   prompt: { message: string; interactionType: string } | null
   vars: Record<string, unknown>
-  shortcode: { code: string; sessionsUsed: number; sessionsQuota: number; label: string }
+  shortcode: { code: string; sessionsUsed: number; sessionsQuota: number; label: string; flatMonthly?: number | null; port?: { provider: string } | null }
 }
 
 const route = useRoute()
@@ -99,7 +99,7 @@ const sessionLive = computed(() => !!session.value && ['awaiting_input', 'awaiti
 const publicVars = computed(() => Object.fromEntries(Object.entries(session.value?.vars ?? {}).filter(([k]) => ['msisdn', 'network', 'business', 'code', 'balance', 'account_name', 'bundle_name', 'amount', 'confirm', 'choice', 'bundle_choice', 'transaction_id', 'payment_status', 'input', 'back'].includes(k))))
 const eventColor: Record<string, string> = {
   'payment.succeeded': 'bg-success-500', 'session.started': 'bg-brand-500', 'session.completed': 'bg-success-600',
-  'session.failed': 'bg-rose-500', 'flow.http_request': 'bg-sky-500', 'shortcode.assigned': 'bg-brand-400',
+  'session.failed': 'bg-rose-500', 'flow.http_request': 'bg-sky-500', 'shortcode.assigned': 'bg-brand-400', 'shortcode.ported': 'bg-amber-500',
   'sessions.topped_up': 'bg-amber-500', 'test.ping': 'bg-slate-400',
 }
 </script>
@@ -206,7 +206,7 @@ const eventColor: Record<string, string> = {
           </div>
           <p v-else class="mt-3 rounded-lg bg-slate-50 px-3 py-4 text-center text-xs text-slate-400">Dial a code to watch variables flow through your menus.</p>
           <p v-if="session" class="mt-3 text-[11px] text-slate-400">
-            Quota: {{ session.shortcode.sessionsUsed.toLocaleString() }} / {{ session.shortcode.sessionsQuota.toLocaleString() }} sessions
+            Quota: {{ session.shortcode.flatMonthly ? `${session.shortcode.sessionsUsed.toLocaleString()} / ∞ · flat GHS ${session.shortcode.flatMonthly}/mo` : `${session.shortcode.sessionsUsed.toLocaleString()} / ${session.shortcode.sessionsQuota.toLocaleString()} sessions` }}
           </p>
         </div>
 

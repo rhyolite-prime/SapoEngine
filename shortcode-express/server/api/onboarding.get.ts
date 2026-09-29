@@ -24,6 +24,17 @@ export default defineEventHandler((event) => {
           flowId: firstCode.flowId ?? null,
           flowName: db.flows.find((f) => f.id === firstCode.flowId)?.name ?? null,
           hasRelease: !!db.flows.find((f) => f.id === firstCode.flowId)?.releases.some((r) => r.status === 'active'),
+          flatMonthly: firstCode.flatMonthly ?? null,
+          port: firstCode.port
+            ? {
+                provider: firstCode.port.provider,
+                interactionUrl: `${getRequestURL(event).origin}/port/${firstCode.port.token}`,
+                requestedAt: firstCode.port.requestedAt,
+                approvedAt: firstCode.port.approvedAt ?? null,
+                rejectedAt: firstCode.port.rejectedAt ?? null,
+                rejectedReason: firstCode.port.rejectedReason ?? null,
+              }
+            : null,
         }
       : null,
   }

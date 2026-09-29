@@ -68,9 +68,13 @@ export const SESSION_PACKS: SessionPack[] = [
 /** One-time activation fee for a new short code, by plan */
 export const SHORTCODE_SETUP_FEES: Record<string, number> = { starter: 250, growth: 400, scale: 750 }
 
+/** Ported-in short codes: flat monthly fee, no session packs, no setup fee */
+export const PORT_FLAT_MONTHLY = 105
+
 export const WEBHOOK_EVENTS: Array<{ id: import('../../shared/types').WebhookEventName; label: string; desc: string }> = [
   { id: 'payment.succeeded', label: 'payment.succeeded', desc: 'A webcheckout payment succeeded (code purchase or top-up), or an in-flow charge was accepted' },
   { id: 'shortcode.assigned', label: 'shortcode.assigned', desc: 'A new short code was provisioned and is live' },
+  { id: 'shortcode.ported', label: 'shortcode.ported', desc: 'Your current provider approved a port-in — the code is now live on ShortCodeExpress' },
   { id: 'sessions.topped_up', label: 'sessions.topped_up', desc: 'A session pack purchase was credited to a short code' },
   { id: 'session.started', label: 'session.started', desc: 'A subscriber dialed one of your codes' },
   { id: 'session.completed', label: 'session.completed', desc: 'A USSD session reached a success terminate node' },

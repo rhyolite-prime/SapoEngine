@@ -33,7 +33,7 @@ async function changePlan(sc: Row, plan: string) {
   await refresh()
 }
 
-const statusColor: Record<string, string> = { active: 'bg-success-100 text-success-700 ring-success-200', provisioning: 'bg-amber-100 text-amber-700 ring-amber-200', suspended: 'bg-rose-100 text-rose-700 ring-rose-200' }
+const statusColor: Record<string, string> = { active: 'bg-success-100 text-success-700 ring-success-200', provisioning: 'bg-amber-100 text-amber-700 ring-amber-200', suspended: 'bg-rose-100 text-rose-700 ring-rose-200', porting: 'bg-amber-100 text-amber-700 ring-amber-200' }
 const fmt = (n: number) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n)
 const ghs = (n: number) => `GHS ${n.toLocaleString()}`
 const decorated = computed<RowFull[]>(() => (rows.value ?? []).map((r) => ({ ...r, mine: !!me && r.ownerId === me.id })))
@@ -65,7 +65,8 @@ const decorated = computed<RowFull[]>(() => (rows.value ?? []).map((r) => ({ ...
               </div>
               <div class="text-xs text-slate-500">
                 {{ sc.label }} · {{ sc.network }}
-                <span v-if="sc.assignedBy" class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">{{ sc.assignedBy === 'user' ? 'picked by you' : 'system-assigned' }}</span>
+                <span v-if="sc.assignedBy === 'port'" class="ml-1 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">ported from {{ sc.port?.provider ?? 'provider' }}</span>
+                <span v-else-if="sc.assignedBy" class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">{{ sc.assignedBy === 'user' ? 'picked by you' : 'system-assigned' }}</span>
               </div>
             </div>
           </div>
@@ -78,16 +79,28 @@ const decorated = computed<RowFull[]>(() => (rows.value ?? []).map((r) => ({ ...
             <div class="text-[11px] font-medium text-slate-500">sessions used</div>
           </div>
           <div class="rounded-xl bg-slate-50 py-3">
-            <div class="text-xl font-extrabold text-slate-900">{{ fmt(sc.sessionsQuota) }}</div>
-            <div class="text-[11px] font-medium text-slate-500">quota <span v-if="sc.sessionsUsed >= sc.sessionsQuota" class="font-bold text-rose-500">· exhausted</span></div>
+            <div class="text-xl font-extrabold text-slate-900">{{ sc.port ? '∞' : fmt(sc.sessionsQuota) }}</div>
+            <div class="text-[11px] font-medium text-slate-500">
+              <template v-if="sc.port">unlimited · flat</template>
+              <template v-else>quota <span v-if="sc.sessionsUsed >= sc.sessionsQuota" class="font-bold text-rose-500">· exhausted</span></template>
+            </div>
           </div>
           <div class="rounded-xl bg-slate-50 py-3">
-            <div class="text-xl font-extrabold text-slate-900">{{ sc.planDetails?.name ?? sc.plan }}</div>
-            <div class="text-[11px] font-medium text-slate-500">plan</div>
+            <div class="text-xl font-extrabold text-slate-900">{{ sc.port ? `Flat ${ghs(sc.flatMonthly ?? 105)}` : (sc.planDetails?.name ?? sc.plan) }}</div>
+            <div class="text-[11px] font-medium text-slate-500">{{ sc.port ? 'per month · ported' : 'plan' }}</div>
           </div>
         </div>
 
-        <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+        <!-- porting progress notice -->
+        <div v-if="sc.port && !sc.port.approvedAt && !sc.port.rejectedAt" class="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-3 py-2.5 ring-1 ring-amber-100">
+          <span class="relative flex h-2 w-2"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span><span class="relative inline-flex h-2 w-2 rounded-full bg-amber-500"></span></span>
+          <span class="text-xs font-semibold text-amber-800">Waiting for {{ sc.port.provider }} — share your porting link from onboarding.</span>
+        </div>
+        <div v-else-if="sc.port?.rejectedAt" class="mt-3 rounded-xl bg-rose-50 px-3 py-2.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-100">
+          Port declined by {{ sc.port.provider }}: {{ sc.port.rejectedReason ?? 'no reason given' }}
+        </div>
+
+        <div v-if="!sc.port" class="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
           <div class="h-full rounded-full" :class="sc.sessionsUsed / Math.max(sc.sessionsQuota, 1) > 0.9 ? 'bg-rose-500' : sc.sessionsUsed / Math.max(sc.sessionsQuota, 1) > 0.7 ? 'bg-amber-500' : 'bg-success-500'"
             :style="{ width: Math.min(100, (sc.sessionsUsed / Math.max(sc.sessionsQuota, 1)) * 100) + '%' }" />
         </div>
@@ -96,17 +109,17 @@ const decorated = computed<RowFull[]>(() => (rows.value ?? []).map((r) => ({ ...
           <NuxtLink :to="`/dial?code=${sc.code}`" class="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-bold text-white hover:bg-brand-500">
             <DevicePhoneMobileIcon class="h-3.5 w-3.5" /> Dial
           </NuxtLink>
-          <button class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800" @click="showTopup = sc">
+          <button v-if="!sc.port" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800" @click="showTopup = sc">
             <BoltSlashIcon class="h-3.5 w-3.5" /> Top up sessions
           </button>
           <NuxtLink v-if="sc.flowId" :to="`/builder/${sc.flowId}`" class="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-bold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">
             <WrenchScrewdriverIcon class="h-3.5 w-3.5" /> {{ sc.flowName ?? 'Flow' }}
           </NuxtLink>
-          <select :value="sc.plan" class="ml-auto rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-600" @change="changePlan(sc, ($event.target as HTMLSelectElement).value)">
+          <select v-if="!sc.port" :value="sc.plan" class="ml-auto rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-600" @change="changePlan(sc, ($event.target as HTMLSelectElement).value)">
             <option v-for="p in sc.planDetails ? [sc.planDetails] : []" :key="p.id" :value="p.id">{{ p.name }}</option>
             <option v-for="p in ['starter', 'growth', 'scale'].filter((x) => x !== sc.plan)" :key="p" :value="p">{{ p }}</option>
           </select>
-          <button class="rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100" @click="activate(sc)">
+          <button v-if="sc.status !== 'porting'" class="rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100" @click="activate(sc)">
             {{ sc.status === 'active' ? 'Suspend' : 'Activate' }}
           </button>
         </div>

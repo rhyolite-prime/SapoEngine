@@ -2,6 +2,7 @@
 import {
   CheckCircleIcon, KeyIcon, SignalIcon, BoltSlashIcon, DevicePhoneMobileIcon,
   ArrowPathIcon, ArrowRightIcon, SparklesIcon, WrenchScrewdriverIcon, ClockIcon, XCircleIcon,
+  ArrowsRightLeftIcon, LinkIcon, ClipboardDocumentIcon, ExclamationTriangleIcon,
 } from '@heroicons/vue/24/outline'
 import type { Plan, SessionPack } from '~/../shared/types'
 
@@ -13,8 +14,13 @@ interface OnboardingStatus {
   hasKey: boolean
   webhookConfigured: boolean
   shortcode: null | {
-    id: string; code: string; label: string; network: string; status: string; plan: string; assignedBy: 'user' | 'system'
+    id: string; code: string; label: string; network: string; status: string; plan: string; assignedBy: 'user' | 'system' | 'port'
     sessionsUsed: number; sessionsQuota: number; flowId: string | null; flowName: string | null; hasRelease: boolean
+    flatMonthly: number | null
+    port: null | {
+      provider: string; interactionUrl: string; requestedAt: string
+      approvedAt: string | null; rejectedAt: string | null; rejectedReason: string | null
+    }
   }
 }
 
@@ -23,14 +29,16 @@ const $api = useRequestFetch()
 const plans = ref<Plan[]>([])
 const packs = ref<SessionPack[]>([])
 const setupFees = ref<Record<string, number>>({})
+const portFlat = ref(105)
 const suggested = ref('')
 
 async function refresh() {
   status.value = await $api<OnboardingStatus>('/api/onboarding')
   plans.value = (await $api<{ plans: Plan[] }>('/api/billing')).plans ?? plans.value
-  const p = await $api<{ packs: SessionPack[]; setupFees: Record<string, number> }>('/api/packs')
+  const p = await $api<{ packs: SessionPack[]; setupFees: Record<string, number>; portFlatMonthly: number }>('/api/packs')
   packs.value = p.packs
   setupFees.value = p.setupFees
+  portFlat.value = p.portFlatMonthly
   if (!suggested.value) await shuffleCode()
 }
 await refresh()
@@ -40,10 +48,16 @@ async function shuffleCode() {
 }
 
 // --- step 2 wizard state -----------------------------------------------------
-const mode = ref<'system' | 'user'>('system')
+const mode = ref<'system' | 'user' | 'port'>('system')
 const customCode = ref('')
 const availability = ref<null | { available: boolean; message: string }>(null)
 const checking = ref(false)
+// porting a code in from another provider
+const portCode = ref('')
+const donorProvider = ref('')
+const portAvailability = ref<null | { available: boolean; reason?: string; message: string }>(null)
+const portChecking = ref(false)
+const portUrlCopied = ref(false)
 const label = ref('')
 const network = ref('MTN')
 const planId = ref('starter')
@@ -62,11 +76,26 @@ watch(customCode, (v) => {
     } finally { checking.value = false }
   }, 350)
 })
-onUnmounted(() => clearTimeout(debounce))
+// a ported code must simply not already live on ShortCodeExpress
+let portDebounce: ReturnType<typeof setTimeout> | undefined
+watch(portCode, (v) => {
+  portAvailability.value = null
+  clearTimeout(portDebounce)
+  if (!v.trim()) return
+  portChecking.value = true
+  portDebounce = setTimeout(async () => {
+    try {
+      portAvailability.value = await $api<{ available: boolean; reason?: string; message: string }>(`/api/shortcodes/available`, { params: { code: v.trim() } })
+      if (portAvailability.value?.available) portAvailability.value.message = `${v.trim()} is free to port into ShortCodeExpress`
+    } finally { portChecking.value = false }
+  }, 350)
+})
+onUnmounted(() => { clearTimeout(debounce); clearTimeout(portDebounce) })
 
-const chosenCode = computed(() => (mode.value === 'system' ? suggested.value : customCode.value.trim()))
+const chosenCode = computed(() => (mode.value === 'system' ? suggested.value : mode.value === 'port' ? portCode.value.trim() : customCode.value.trim()))
 const plan = computed(() => plans.value.find((p) => p.id === planId.value) ?? plans.value[0])
-const totalDue = computed(() => (plan.value ? plan.value.priceMonthly + (setupFees.value[plan.value.id] ?? 250) : 0))
+const porting = computed(() => mode.value === 'port')
+const totalDue = computed(() => (porting.value ? portFlat.value : plan.value ? plan.value.priceMonthly + (setupFees.value[plan.value.id] ?? 250) : 0))
 
 async function buyCode() {
   wizardError.value = ''
@@ -74,7 +103,9 @@ async function buyCode() {
   try {
     const co = await $api<{ id: string }>('/api/checkout', {
       method: 'POST',
-      body: { kind: 'shortcode', mode: mode.value, code: customCode.value.trim(), label: label.value.trim(), network: network.value, planId: planId.value },
+      body: porting.value
+        ? { kind: 'port', code: portCode.value.trim(), provider: donorProvider.value.trim(), label: label.value.trim(), network: network.value }
+        : { kind: 'shortcode', mode: mode.value, code: customCode.value.trim(), label: label.value.trim(), network: network.value, planId: planId.value },
     })
     navigateTo(`/checkout/${co.id}`)
   } catch (e: unknown) {
@@ -98,11 +129,21 @@ const elapsed = computed(() => {
   return mins < 1 ? 'just started' : mins === 1 ? '1 min in' : `${mins} mins in`
 })
 
+async function copyPortUrl() {
+  const url = status.value?.shortcode?.port?.interactionUrl
+  if (!url) return
+  try { await navigator.clipboard.writeText(url); portUrlCopied.value = true; setTimeout(() => (portUrlCopied.value = false), 1600) } catch {}
+}
+const portInfo = computed(() => status.value?.shortcode?.port ?? null)
+const portPending = computed(() => !!portInfo.value && !portInfo.value.approvedAt && !portInfo.value.rejectedAt)
+const portApproved = computed(() => !!portInfo.value?.approvedAt)
+const portRejected = computed(() => !!portInfo.value?.rejectedAt)
+
 const stepDone = computed(() => ({
   account: !!status.value?.hasKey,
   code: !!status.value?.shortcode,
   topup: !!status.value?.shortcode, // optional step: done once you have a code
-  dial: !!status.value?.shortcode?.hasRelease,
+  dial: !!status.value?.shortcode?.hasRelease && status.value.shortcode.status === 'active',
 }))
 
 const allDone = computed(() => stepDone.value.dial)
@@ -181,22 +222,73 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
               <span v-if="stepDone.code" class="rounded-full bg-success-50 px-2 py-0.5 text-[11px] font-bold text-success-600">LIVE</span>
             </div>
 
-            <div v-if="status?.shortcode" class="mt-3 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-100">
-              <div class="flex flex-wrap items-center gap-3">
-                <span class="font-mono text-xl font-extrabold text-slate-900">{{ status.shortcode.code }}</span>
-                <span class="rounded-full bg-success-100 px-2 py-0.5 text-[11px] font-bold uppercase text-success-700">{{ status.shortcode.status }}</span>
-                <span class="text-xs text-slate-500">assigned by {{ status.shortcode.assignedBy }} · {{ status.shortcode.network }}</span>
+            <div v-if="status?.shortcode" class="mt-3 space-y-3">
+              <div class="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-100">
+                <div class="flex flex-wrap items-center gap-3">
+                  <span class="font-mono text-xl font-extrabold text-slate-900">{{ status.shortcode.code }}</span>
+                  <span class="rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase"
+                    :class="status.shortcode.status === 'active' ? 'bg-success-100 text-success-700' : status.shortcode.status === 'porting' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'">
+                    {{ status.shortcode.status }}
+                  </span>
+                  <span class="text-xs text-slate-500">
+                    {{ status.shortcode.assignedBy === 'port' ? `ported from ${status.shortcode.port?.provider ?? 'your provider'}` : `assigned by ${status.shortcode.assignedBy}` }} · {{ status.shortcode.network }}
+                  </span>
+                </div>
+                <p v-if="status.shortcode.flatMonthly" class="mt-2 text-sm text-slate-600">
+                  <b>Unlimited sessions</b> — flat {{ ghs(status.shortcode.flatMonthly) }}/month, no packs needed.
+                </p>
+                <p v-else class="mt-2 text-sm text-slate-600">
+                  {{ status.shortcode.sessionsQuota.toLocaleString() }} sessions included ·
+                  <button class="font-semibold text-brand-600 hover:underline" @click="topup('p20')">top up anytime</button>
+                </p>
               </div>
-              <p class="mt-2 text-sm text-slate-600">
-                {{ status.shortcode.sessionsQuota.toLocaleString() }} sessions included ·
-                <button class="font-semibold text-brand-600 hover:underline" @click="topup('p20')">top up anytime</button>
-              </p>
+
+              <!-- porting tracker: waiting for the donor provider -->
+              <div v-if="portPending" class="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+                <div class="flex items-center gap-2 text-sm font-bold text-amber-800">
+                  <span class="relative flex h-2.5 w-2.5"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500"></span></span>
+                  Waiting for {{ portInfo?.provider }} to release {{ status.shortcode.code }}
+                </div>
+                <p class="mt-1.5 text-xs leading-relaxed text-amber-700">
+                  Send this private link to your current provider — the code goes live on ShortCodeExpress the moment they approve.
+                  Your flow is already built and released, so nothing else is needed from you.
+                </p>
+                <div class="mt-2.5 flex items-center gap-2">
+                  <div class="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-amber-200 bg-white px-3 py-2">
+                    <LinkIcon class="h-4 w-4 shrink-0 text-amber-500" />
+                    <span class="truncate font-mono text-xs font-semibold text-slate-700">{{ portInfo?.interactionUrl }}</span>
+                  </div>
+                  <button class="shrink-0 rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white hover:bg-amber-500" @click="copyPortUrl">
+                    <ClipboardDocumentIcon class="mr-1 inline h-3.5 w-3.5" />{{ portUrlCopied ? 'Copied!' : 'Copy link' }}
+                  </button>
+                  <a :href="portInfo?.interactionUrl" target="_blank" rel="noopener"
+                    class="shrink-0 rounded-lg bg-white px-3 py-2 text-xs font-bold text-amber-700 ring-1 ring-amber-300 hover:bg-amber-50" title="See what your provider sees">
+                    Preview
+                  </a>
+                </div>
+                <p class="mt-2 text-[10.5px] text-amber-600/90">Tip: the “Preview” link opens the exact page your provider will use to approve the port.</p>
+              </div>
+
+              <!-- port rejected -->
+              <div v-else-if="portRejected" class="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-4">
+                <ExclamationTriangleIcon class="mt-0.5 h-5 w-5 shrink-0 text-rose-500" />
+                <div>
+                  <div class="text-sm font-bold text-rose-700">{{ portInfo?.provider }} declined the port</div>
+                  <p class="mt-0.5 text-xs text-rose-600">Reason: {{ portInfo?.rejectedReason ?? 'not given' }}. Your {{ ghs(status.shortcode.flatMonthly ?? portFlat) }} payment is safe — contact support to retry the port or get a refund.</p>
+                </div>
+              </div>
+
+              <!-- port approved -->
+              <div v-else-if="portApproved" class="flex items-center gap-2.5 rounded-xl border border-success-200 bg-success-50 p-4">
+                <CheckCircleIcon class="h-5 w-5 shrink-0 text-success-600" />
+                <p class="text-sm text-success-800"><b>{{ status.shortcode.code }} is yours.</b> Ported from {{ portInfo?.provider }} and live — unlimited sessions at a flat {{ ghs(status.shortcode.flatMonthly ?? portFlat) }}/month.</p>
+              </div>
             </div>
 
             <!-- purchase wizard -->
             <div v-else class="mt-4 space-y-5">
               <!-- mode -->
-              <div class="grid gap-3 sm:grid-cols-2">
+              <div class="grid gap-3 sm:grid-cols-3">
                 <button class="rounded-xl border-2 p-4 text-left transition"
                   :class="mode === 'system' ? 'border-brand-500 bg-brand-50/60' : 'border-slate-200 hover:border-slate-300'" @click="mode = 'system'">
                   <div class="flex items-center justify-between">
@@ -225,10 +317,44 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
                     {{ availability?.message ?? 'Live availability check as you type.' }}
                   </p>
                 </button>
+
+                <button class="rounded-xl border-2 p-4 text-left transition"
+                  :class="mode === 'port' ? 'border-brand-500 bg-brand-50/60' : 'border-slate-200 hover:border-slate-300'" @click="mode = 'port'">
+                  <div class="flex items-center gap-1.5">
+                    <ArrowsRightLeftIcon class="h-4 w-4 text-brand-600" />
+                    <span class="text-sm font-bold text-slate-900">Port a code I own</span>
+                  </div>
+                  <p class="mt-2 text-xs leading-relaxed text-slate-500">
+                    Bring your existing code from another provider. Flat <b class="text-slate-700">GHS {{ portFlat }}/month</b> — unlimited sessions, no packs.
+                  </p>
+                  <p class="mt-1.5 text-[11px] font-semibold text-brand-600">You'll get a link to send your provider →</p>
+                </button>
+              </div>
+
+              <!-- port details -->
+              <div v-if="porting" class="grid gap-3 sm:grid-cols-2">
+                <label class="block">
+                  <span class="mb-1 block text-xs font-semibold text-slate-600">The short code you own</span>
+                  <input v-model="portCode" placeholder="*714*42#"
+                    class="w-full rounded-xl border px-3.5 py-2.5 font-mono text-lg font-extrabold outline-none focus:ring-2 focus:ring-brand-100"
+                    :class="portAvailability?.available === false ? 'border-rose-300 text-rose-700' : portAvailability?.available ? 'border-success-400 text-success-700' : 'border-slate-200'" />
+                  <span class="mt-1 flex items-center gap-1 text-xs" :class="portAvailability?.available === false ? 'text-rose-600' : portAvailability?.available ? 'text-success-600' : 'text-slate-500'">
+                    <svg v-if="portChecking" class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25" /><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" /></svg>
+                    <CheckCircleIcon v-else-if="portAvailability?.available" class="h-3.5 w-3.5" />
+                    <XCircleIcon v-else-if="portAvailability?.available === false" class="h-3.5 w-3.5" />
+                    {{ portAvailability?.message ?? 'Type the code exactly as your subscribers dial it.' }}
+                  </span>
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-xs font-semibold text-slate-600">Your current provider</span>
+                  <input v-model="donorProvider" placeholder="e.g. Hubtel, Korba, BPC"
+                    class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+                  <span class="mt-1 block text-xs text-slate-500">Who routes this code today. We'll give you a link to send them.</span>
+                </label>
               </div>
 
               <!-- service details -->
-              <div class="grid gap-3 sm:grid-cols-2">
+              <div class="grid gap-3" :class="porting ? 'sm:grid-cols-2' : 'sm:grid-cols-2'">
                 <label class="block">
                   <span class="mb-1 block text-xs font-semibold text-slate-600">Service name</span>
                   <input v-model="label" placeholder="Kofi Airtime" class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
@@ -241,8 +367,24 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
                 </label>
               </div>
 
-              <!-- plans -->
-              <div>
+              <!-- plans / flat porting rate -->
+              <div v-if="porting" class="rounded-xl border-2 border-brand-200 bg-gradient-to-br from-brand-50/80 to-white p-5">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div class="text-sm font-bold text-slate-900">Porting plan — flat rate</div>
+                    <ul class="mt-1.5 space-y-1 text-xs text-slate-600">
+                      <li>· <b class="text-slate-800">Unlimited sessions</b> — never buy packs, never hit a quota</li>
+                      <li>· No activation fee — just the monthly flat fee</li>
+                      <li>· Private porting link for your current provider, issued right after payment</li>
+                    </ul>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-2xl font-extrabold text-brand-700">{{ ghs(portFlat) }}<span class="text-xs font-semibold text-slate-400">/month</span></div>
+                    <div class="text-[11px] font-semibold text-success-600">flat · no setup fee</div>
+                  </div>
+                </div>
+              </div>
+              <div v-else>
                 <span class="mb-2 block text-xs font-semibold text-slate-600">Plan (sets your session quota)</span>
                 <div class="grid gap-3 sm:grid-cols-3">
                   <button v-for="p in plans" :key="p.id" class="rounded-xl border-2 p-4 text-left transition"
@@ -261,9 +403,11 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
                 <div>
                   <div class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Total due at checkout</div>
                   <div class="text-xl font-extrabold text-white">{{ ghs(totalDue) }}</div>
-                  <div class="text-[11px] text-slate-400">{{ chosenCode || 'a fresh code' }} · first month + activation</div>
+                  <div class="text-[11px] text-slate-400">
+                    {{ chosenCode || 'a fresh code' }} · {{ porting ? `first month · flat ${ghs(portFlat)} — no activation fee` : 'first month + activation' }}
+                  </div>
                 </div>
-                <button :disabled="creating || (mode === 'user' && availability?.available !== true) || !label.trim()"
+                <button :disabled="creating || (mode === 'user' && availability?.available !== true) || (porting && (portAvailability?.available !== true || donorProvider.trim().length < 2)) || !label.trim()"
                   class="flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-brand-400 disabled:opacity-40"
                   @click="buyCode">
                   <svg v-if="creating" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25" /><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" /></svg>
@@ -288,12 +432,16 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
               <h2 class="font-bold text-slate-900">Sessions &amp; top-ups</h2>
               <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">OPTIONAL</span>
             </div>
-            <p v-if="status?.shortcode" class="mt-1 text-sm text-slate-500">
+            <p v-if="status?.shortcode?.flatMonthly" class="mt-1 text-sm text-slate-500">
+              Ported codes are <b class="text-slate-800">flat-rated</b> — {{ status.shortcode.sessionsUsed.toLocaleString() }} sessions so far and counting nothing.
+              No packs, no quotas; you simply pay {{ ghs(status.shortcode.flatMonthly) }}/month.
+            </p>
+            <p v-else-if="status?.shortcode" class="mt-1 text-sm text-slate-500">
               <span class="font-bold text-slate-800">{{ status.shortcode.sessionsUsed.toLocaleString() }} / {{ status.shortcode.sessionsQuota.toLocaleString() }}</span> sessions used.
               Every dial counts against the quota — top up in one click when you need more.
             </p>
             <p v-else class="mt-1 text-sm text-slate-500">Your plan's sessions arrive with the code. Buy extra packs anytime via webcheckout.</p>
-            <div class="mt-3 grid gap-2 sm:grid-cols-4">
+            <div v-if="!status?.shortcode?.flatMonthly" class="mt-3 grid gap-2 sm:grid-cols-4">
               <div v-for="pk in packs" :key="pk.id" class="rounded-xl border border-slate-200 p-3">
                 <div class="text-sm font-bold text-slate-900">{{ pk.sessions.toLocaleString() }}</div>
                 <div class="text-[11px] text-slate-500">sessions · {{ ghs(pk.price) }}</div>
@@ -319,11 +467,17 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
               Your starter flow is deployed: dynamic menus (<span class="font-mono text-xs">${{ '{' }}balance{{ '}' }}</span> templating), a live API call and a MoMo charge that fires
               a <span class="font-mono text-xs">payment.succeeded</span> webhook. Navigate it on the keypad like a real subscriber.
             </p>
+            <p v-if="portPending" class="mt-2 flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 ring-1 ring-amber-100">
+              <ClockIcon class="h-4 w-4" /> The dialer unlocks the moment {{ portInfo?.provider }} approves your port — step 2 above.
+            </p>
             <div class="mt-3 flex flex-wrap gap-2">
-              <NuxtLink v-if="status?.shortcode" :to="`/dial?code=${status.shortcode.code}`"
+              <NuxtLink v-if="status?.shortcode && status.shortcode.status === 'active'" :to="`/dial?code=${status.shortcode.code}`"
                 class="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-brand-500">
                 <DevicePhoneMobileIcon class="h-3.5 w-3.5" /> Open the dialer
               </NuxtLink>
+              <span v-else-if="status?.shortcode" class="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-400">
+                <DevicePhoneMobileIcon class="h-3.5 w-3.5" /> Dialer opens when the code is active
+              </span>
               <NuxtLink v-if="status?.shortcode?.flowId" :to="`/builder/${status.shortcode.flowId}`"
                 class="inline-flex items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-xs font-bold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">
                 <WrenchScrewdriverIcon class="h-3.5 w-3.5" /> Edit flow in builder

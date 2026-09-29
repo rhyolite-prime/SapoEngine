@@ -6,7 +6,7 @@ useHead({ title: 'Dashboard · ShortCodeExpress' })
 const { refresh } = useAuth()
 refresh()
 
-interface ScAgg { id: string; code: string; label: string; plan: string; status: string; network: string; sessions: number; completed: number; failed: number; revenue: number; sessionsUsed: number; sessionsQuota: number; completionRate: number; flowName: string | null; series: number[] }
+interface ScAgg { id: string; code: string; label: string; plan: string; status: string; network: string; sessions: number; completed: number; failed: number; revenue: number; sessionsUsed: number; sessionsQuota: number; flat: boolean; flatMonthly: number | null; completionRate: number; flowName: string | null; series: number[] }
 interface Stats {
   currency: string
   today: { sessions: number; hourly: number[] }
@@ -184,16 +184,26 @@ const statusColor: Record<string, string> = { active: 'bg-success-100 text-succe
               <td class="px-5 py-3.5 font-semibold text-slate-800">{{ money(sc.revenue) }}</td>
               <td class="px-5 py-3.5">
                 <div class="w-40">
-                  <div class="flex justify-between text-[11px] text-slate-500">
-                    <span>{{ fmt(sc.sessionsUsed) }} / {{ fmt(sc.sessionsQuota) }}</span>
-                    <span :class="sc.sessionsUsed / Math.max(1, sc.sessionsQuota) > 0.9 ? 'font-bold text-rose-600' : ''">{{ Math.round((sc.sessionsUsed / Math.max(1, sc.sessionsQuota)) * 100) }}%</span>
-                  </div>
-                  <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      class="h-full rounded-full" :class="sc.sessionsUsed / Math.max(1, sc.sessionsQuota) > 0.9 ? 'bg-rose-500' : sc.sessionsUsed / Math.max(1, sc.sessionsQuota) > 0.7 ? 'bg-amber-500' : 'bg-brand-500'"
-                      :style="{ width: Math.min(100, (sc.sessionsUsed / Math.max(1, sc.sessionsQuota)) * 100) + '%' }"
-                    />
-                  </div>
+                  <template v-if="sc.flat">
+                    <div class="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
+                      {{ fmt(sc.sessionsUsed) }} / ∞ <span class="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold text-brand-700">flat {{ sc.flatMonthly ?? 105 }}/mo</span>
+                    </div>
+                    <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-brand-100">
+                      <div class="h-full w-full rounded-full bg-brand-400" />
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div class="flex justify-between text-[11px] text-slate-500">
+                      <span>{{ fmt(sc.sessionsUsed) }} / {{ fmt(sc.sessionsQuota) }}</span>
+                      <span :class="sc.sessionsUsed / Math.max(1, sc.sessionsQuota) > 0.9 ? 'font-bold text-rose-600' : ''">{{ Math.round((sc.sessionsUsed / Math.max(1, sc.sessionsQuota)) * 100) }}%</span>
+                    </div>
+                    <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        class="h-full rounded-full" :class="sc.sessionsUsed / Math.max(1, sc.sessionsQuota) > 0.9 ? 'bg-rose-500' : sc.sessionsUsed / Math.max(1, sc.sessionsQuota) > 0.7 ? 'bg-amber-500' : 'bg-brand-500'"
+                        :style="{ width: Math.min(100, (sc.sessionsUsed / Math.max(1, sc.sessionsQuota)) * 100) + '%' }"
+                      />
+                    </div>
+                  </template>
                 </div>
               </td>
             </tr>

@@ -6,6 +6,14 @@ export default defineEventHandler(async (event) => {
   const sc = db.shortcodes.find((s) => s.id === id)
   if (!sc) throw createError({ statusCode: 404, statusMessage: 'Short code not found' })
   const body = await readBody<{ plan?: string; status?: string; label?: string; flowId?: string; sessionsQuota?: number; sessionsUsed?: number }>(event)
+  // ported codes are flat-rated: plan changes and manual quota edits don't apply
+  if (sc.port && (body.plan || body.sessionsQuota !== undefined)) {
+    throw createError({ statusCode: 409, statusMessage: `${sc.code} is flat-rated (GHS ${sc.flatMonthly ?? 105}/mo, unlimited sessions) — plans and quotas don't apply to ported codes` })
+  }
+  // a mid-port code must not be manually activated — the donor provider approves the port
+  if (sc.status === 'porting' && body.status === 'active' && !sc.port?.approvedAt) {
+    throw createError({ statusCode: 409, statusMessage: `${sc.code} is mid-port — ${sc.port?.provider ?? 'the donor provider'} must approve the port first` })
+  }
   if (body.plan) {
     const plan = db.plans.find((p) => p.id === body.plan)
     if (plan) { sc.plan = plan.id; sc.sessionsQuota = plan.sessionQuota }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ShieldCheckIcon, DevicePhoneMobileIcon, CreditCardIcon, CheckCircleIcon, XCircleIcon, SignalIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
+import { ShieldCheckIcon, DevicePhoneMobileIcon, CreditCardIcon, CheckCircleIcon, XCircleIcon, SignalIcon, ArrowPathIcon, ArrowsRightLeftIcon, LinkIcon, ClipboardDocumentIcon } from '@heroicons/vue/24/outline'
 import type { CheckoutSession } from '~/../shared/types'
 
 definePageMeta({ middleware: 'auth' })
@@ -72,6 +72,13 @@ function retry() { phase.value = 'form'; payError.value = '' }
 const ghs = (n: number) => `GHS ${n.toLocaleString('en-GH', { minimumFractionDigits: 2 })}`
 const boughtCode = computed(() => String(co.value?.meta.code ?? ''))
 const resultShortcode = computed(() => (result.value?.shortcode ?? null) as Record<string, unknown> | null)
+const resultPort = computed(() => (result.value?.port ?? null) as { token: string; url: string; provider: string } | null)
+const donorProvider = computed(() => String(co.value?.meta.provider ?? 'your current provider'))
+const portUrlCopied = ref(false)
+async function copyPortUrl() {
+  if (!resultPort.value) return
+  try { await navigator.clipboard.writeText(resultPort.value.url); portUrlCopied.value = true; setTimeout(() => (portUrlCopied.value = false), 1600) } catch {}
+}
 
 onUnmounted(() => clearInterval(noteTimer))
 </script>
@@ -113,7 +120,17 @@ onUnmounted(() => clearInterval(noteTimer))
             <span class="text-sm font-bold text-slate-900">Total due today</span>
             <span class="text-2xl font-extrabold text-slate-900">{{ ghs(co.total) }}</span>
           </div>
-          <div v-if="co.kind === 'shortcode'" class="mt-5 rounded-xl bg-brand-50 p-4 ring-1 ring-brand-100">
+          <div v-if="co.kind === 'port'" class="mt-5 rounded-xl bg-amber-50 p-4 ring-1 ring-amber-100">
+            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-700">
+              <ArrowsRightLeftIcon class="h-4 w-4" /> How porting works
+            </div>
+            <ol class="mt-2 space-y-1.5 text-sm text-slate-700">
+              <li>1. Pay — we issue your <b>private provider interaction link</b></li>
+              <li>2. Send the link to <b>{{ donorProvider }}</b> (they hold <span class="font-mono font-bold">{{ boughtCode }}</span> today)</li>
+              <li>3. They approve on that page → your code goes live instantly, with unlimited sessions</li>
+            </ol>
+          </div>
+          <div v-else-if="co.kind === 'shortcode'" class="mt-5 rounded-xl bg-brand-50 p-4 ring-1 ring-brand-100">
             <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-brand-700">
               <SignalIcon class="h-4 w-4" /> Included instantly after payment
             </div>
@@ -204,7 +221,31 @@ onUnmounted(() => clearInterval(noteTimer))
             <h3 class="mt-3 text-lg font-extrabold text-slate-900">Payment received!</h3>
             <p class="mt-1 text-sm text-slate-500">{{ ghs(co.total) }} · invoice issued · webhook fired</p>
 
-            <div v-if="co.kind === 'shortcode' && resultShortcode" class="mt-5 rounded-2xl bg-gradient-to-br from-brand-700 to-brand-500 p-5 text-left text-white shadow-xl">
+            <!-- PORT SUCCESS: the interaction URL is the deliverable -->
+            <div v-if="co.kind === 'port' && resultPort" class="mt-5 rounded-2xl bg-gradient-to-br from-amber-600 to-amber-500 p-5 text-left text-white shadow-xl">
+              <div class="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-white/75">
+                <ArrowsRightLeftIcon class="h-4 w-4" /> Porting started for {{ boughtCode }}
+              </div>
+              <p class="mt-2 text-sm leading-relaxed text-white/90">
+                Send this private link to <b>{{ resultPort.provider }}</b>. The moment they approve it,
+                <span class="font-mono font-bold">{{ boughtCode }}</span> is live here — flow deployed, unlimited sessions, flat monthly.
+              </p>
+              <div class="mt-3 flex items-center gap-2">
+                <div class="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-white/15 px-3 py-2.5 ring-1 ring-white/30">
+                  <LinkIcon class="h-4 w-4 shrink-0 text-white/80" />
+                  <span class="truncate font-mono text-xs font-semibold">{{ resultPort.url }}</span>
+                </div>
+                <button class="shrink-0 rounded-xl bg-white px-3.5 py-2.5 text-xs font-bold text-amber-700 hover:bg-amber-50" @click="copyPortUrl">
+                  <ClipboardDocumentIcon class="mr-1 inline h-3.5 w-3.5" />{{ portUrlCopied ? 'Copied!' : 'Copy' }}
+                </button>
+              </div>
+              <a :href="resultPort.url" target="_blank" rel="noopener"
+                class="mt-2 inline-block text-[11px] font-semibold text-white/80 underline decoration-white/40 hover:text-white">
+                Preview the provider page (see exactly what they'll see) →
+              </a>
+            </div>
+
+            <div v-else-if="co.kind === 'shortcode' && resultShortcode" class="mt-5 rounded-2xl bg-gradient-to-br from-brand-700 to-brand-500 p-5 text-left text-white shadow-xl">
               <div class="text-[11px] font-bold uppercase tracking-widest text-white/70">Your short code is LIVE</div>
               <div class="mt-1 font-mono text-3xl font-extrabold tracking-wide">{{ resultShortcode.code }}</div>
               <div class="mt-2 text-sm text-white/80">
@@ -222,11 +263,15 @@ onUnmounted(() => clearInterval(noteTimer))
                 class="flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-brand-200 hover:bg-brand-500">
                 <DevicePhoneMobileIcon class="h-4 w-4" /> Dial {{ resultShortcode?.code }} now — it's live
               </NuxtLink>
+              <NuxtLink v-else-if="co.kind === 'port'" to="/onboarding"
+                class="flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-amber-200 hover:bg-amber-500">
+                <ArrowsRightLeftIcon class="h-4 w-4" /> Track the port on your onboarding
+              </NuxtLink>
               <NuxtLink v-else to="/shortcodes" class="flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-brand-200 hover:bg-brand-500">
                 Back to short codes
               </NuxtLink>
-              <NuxtLink :to="co.kind === 'shortcode' ? '/onboarding' : '/billing'" class="block text-center text-xs font-semibold text-slate-500 hover:text-slate-800">
-                {{ co.kind === 'shortcode' ? 'Continue onboarding' : 'View invoices' }}
+              <NuxtLink :to="co.kind === 'topup' ? '/billing' : '/onboarding'" class="block text-center text-xs font-semibold text-slate-500 hover:text-slate-800">
+                {{ co.kind === 'topup' ? 'View invoices' : 'Continue onboarding' }}
               </NuxtLink>
             </div>
           </div>

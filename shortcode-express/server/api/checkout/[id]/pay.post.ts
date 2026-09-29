@@ -6,7 +6,8 @@
 // Payments emit `payment.succeeded` (+ `shortcode.assigned` / `sessions.topped_up`)
 // webhooks and drop a paid invoice into billing.
 // ---------------------------------------------------------------------------
-import { useDb, saveDb, rid, SHORTCODE_SETUP_FEES, SESSION_PACKS } from '../../../utils/db'
+import { randomUUID } from 'node:crypto'
+import { useDb, saveDb, rid, SHORTCODE_SETUP_FEES, SESSION_PACKS, PORT_FLAT_MONTHLY } from '../../../utils/db'
 import { requireUser } from '../../../utils/auth'
 import { emitWebhook } from '../../../utils/webhooks'
 import { provisionStarterFlow } from '../../../utils/starter'
@@ -106,6 +107,38 @@ export default defineEventHandler(async (event) => {
       sessions_quota: sc.sessionsQuota, assigned_by: sc.assignedBy,
       flow: { id: flow.id, name: flow.name, release: flow.releases[0]?.tag ?? null },
     })
+  } else if (co.kind === 'port') {
+    // Port-in: the code arrives with status 'porting' (unmetered flat rate).
+    // We issue the provider interaction URL now — the customer shares it with
+    // their donor provider, and the code goes live the moment they approve.
+    let code = String(co.meta.code ?? '')
+    if (findShortcodeByCode(code)) {
+      co.status = 'failed'; co.failureReason = 'code_taken'; saveDb(db)
+      throw createError({ statusCode: 409, statusMessage: `${code} is already active on ShortCodeExpress — your payment was not charged.` })
+    }
+    const token = randomUUID().replace(/-/g, '').slice(0, 24)
+    const sc: ShortCode = {
+      id: rid('sc'),
+      code,
+      label: String(co.meta.label ?? 'My USSD service'),
+      network: String(co.meta.network ?? 'MTN'),
+      status: 'porting',
+      plan: 'starter',
+      sessionsUsed: 0,
+      sessionsQuota: 0, // ported codes are unmetered — see `flatMonthly`
+      createdAt: now,
+      ownerId: user.id,
+      assignedBy: 'port',
+      flatMonthly: PORT_FLAT_MONTHLY,
+      port: { provider: String(co.meta.provider ?? 'your provider'), token, requestedAt: now },
+    }
+    db.shortcodes.push(sc)
+    const flow = provisionStarterFlow(db, fresh, sc) // ready to dial the instant the port completes
+    const origin = getRequestURL(event).origin
+    result.shortcode = { id: sc.id, code: sc.code, status: sc.status, flatMonthly: sc.flatMonthly }
+    result.port = { token, url: `${origin}/port/${token}`, provider: sc.port.provider }
+    result.flow = { id: flow.id, name: flow.name, release: flow.releases[0]?.tag }
+    result.dialable = false
   } else {
     const sc = db.shortcodes.find((s) => s.id === String(co.meta.shortcodeId))
     if (!sc) {

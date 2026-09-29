@@ -44,6 +44,7 @@ if (!events.value.length) {
   events.value = [
     { id: 'payment.succeeded', label: 'payment.succeeded', desc: 'Webcheckout or in-flow charge succeeded' },
     { id: 'shortcode.assigned', label: 'shortcode.assigned', desc: 'New short code provisioned & live' },
+    { id: 'shortcode.ported', label: 'shortcode.ported', desc: 'A port-in was approved by the previous provider — code is live' },
     { id: 'sessions.topped_up', label: 'sessions.topped_up', desc: 'Session pack credited' },
     { id: 'session.started', label: 'session.started', desc: 'Subscriber dialed your code' },
     { id: 'session.completed', label: 'session.completed', desc: 'Session reached success terminate' },
@@ -119,7 +120,7 @@ const curlInput = `curl -X POST ${origin}/api/ussd/input \\
 
 const eventColor: Record<string, string> = {
   'payment.succeeded': 'bg-success-500', 'session.started': 'bg-brand-500', 'session.completed': 'bg-success-600',
-  'session.failed': 'bg-rose-500', 'flow.http_request': 'bg-sky-500', 'shortcode.assigned': 'bg-brand-400',
+  'session.failed': 'bg-rose-500', 'flow.http_request': 'bg-sky-500', 'shortcode.assigned': 'bg-brand-400', 'shortcode.ported': 'bg-amber-500',
   'sessions.topped_up': 'bg-amber-500', 'test.ping': 'bg-slate-400',
 }
 </script>

@@ -1,6 +1,6 @@
 // Create a webcheckout session. kind: 'shortcode' (buy a code) | 'topup'.
 // Codes are validated/reserved here — payment fulfils them instantly.
-import { useDb, saveDb, rid, SHORTCODE_SETUP_FEES, SESSION_PACKS } from '../../utils/db'
+import { useDb, saveDb, rid, SHORTCODE_SETUP_FEES, SESSION_PACKS, PORT_FLAT_MONTHLY } from '../../utils/db'
 import { requireUser } from '../../utils/auth'
 import { findShortcodeByCode, normalizeCode } from '../../utils/ussd'
 import type { CheckoutSession } from '../../../shared/types'
@@ -10,7 +10,7 @@ const CODE_RE = /^\*[0-9]{3,5}(\*[0-9]{1,3})?#$/
 export default defineEventHandler(async (event) => {
   const user = requireUser(event)
   const body = await readBody<{
-    kind?: 'shortcode' | 'topup'
+    kind?: 'shortcode' | 'topup' | 'port'
     // shortcode purchase
     mode?: 'system' | 'user'
     code?: string
@@ -20,6 +20,8 @@ export default defineEventHandler(async (event) => {
     // topup
     shortcodeId?: string
     packId?: string
+    // port-in from another provider
+    provider?: string
   }>(event)
   const db = useDb()
 
@@ -54,6 +56,27 @@ export default defineEventHandler(async (event) => {
       { label: 'Short code activation', detail: 'One-time provisioning fee', qty: 1, unit: 'one-time', amount: setup },
     ]
     meta = { mode: body.mode ?? 'system', code, label, network, planId: plan.id }
+  } else if (body.kind === 'port') {
+    // Porting an existing code from another provider: flat monthly fee,
+    // unlimited sessions, no setup fee. The interaction URL for the donor
+    // provider is issued when the payment is fulfilled.
+    const code = (body.code ?? '').replace(/\s+/g, '')
+    if (!CODE_RE.test(code)) {
+      throw createError({ statusCode: 400, statusMessage: 'Codes look like *714*42# or *565# — 3-5 digits, optional second group, then #' })
+    }
+    if (findShortcodeByCode(code)) {
+      throw createError({ statusCode: 409, statusMessage: `${code} is already active on ShortCodeExpress — nothing to port` })
+    }
+    const provider = (body.provider ?? '').trim()
+    if (provider.length < 2) throw createError({ statusCode: 400, statusMessage: 'Tell us who currently provides this code (e.g. Hubtel)' })
+    const label = (body.label ?? '').trim()
+    if (label.length < 2) throw createError({ statusCode: 400, statusMessage: 'Give your service a name (e.g. Kofi Airtime)' })
+    const network = ['MTN', 'Vodafone', 'AirtelTigo'].includes(body.network ?? '') ? body.network! : 'MTN'
+
+    items = [
+      { label: `Port ${code} to ShortCodeExpress — flat monthly`, detail: `Unlimited sessions · porting from ${provider}`, qty: 1, unit: 'month', amount: PORT_FLAT_MONTHLY },
+    ]
+    meta = { mode: 'port', code, label, network, provider }
   } else if (body.kind === 'topup') {
     const pack = SESSION_PACKS.find((p) => p.id === body.packId)
     if (!pack) throw createError({ statusCode: 400, statusMessage: 'Pick a session pack' })

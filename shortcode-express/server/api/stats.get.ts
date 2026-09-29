@@ -54,6 +54,7 @@ export default defineEventHandler(() => {
       id: sc.id, code: sc.code, label: sc.label, plan: sc.plan, status: sc.status,
       network: sc.network, sessions: s.sessions, completed: s.completed, failed: s.failed,
       revenue: s.revenue, sessionsUsed: sc.sessionsUsed, sessionsQuota: sc.sessionsQuota,
+      flat: !!sc.port, flatMonthly: sc.flatMonthly ?? null,
       completionRate: s.sessions ? Math.round((s.completed / s.sessions) * 1000) / 10 : 0,
       flowName: flow?.name ?? null,
       series: Object.entries(dailyByCode.get(sc.id) ?? {}).sort(([a], [b]) => a.localeCompare(b)).map(([, v]) => v),
