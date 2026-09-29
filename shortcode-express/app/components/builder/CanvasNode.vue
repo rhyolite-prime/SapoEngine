@@ -69,8 +69,8 @@ const typeLabel = computed(() => {
 <template>
   <div
     v-if="node"
-    class="w-[248px] rounded-xl bg-white shadow-md transition-shadow"
-    :class="[selected ? `ring-2 ${visual.ring} shadow-lg` : 'ring-1 ring-slate-200/80 hover:shadow-lg']"
+    class="w-[248px] rounded-xl bg-white shadow-md transition-all duration-150"
+    :class="[selected ? `ring-2 ${visual.ring} shadow-lg` : 'ring-1 ring-slate-200/80 hover:shadow-lg', unrelated ? 'opacity-30 saturate-[0.6]' : '']"
   >
     <Handle type="target" :position="Position.Left" class="!h-3.5 !w-3.5 !bg-white !border-slate-300" />
 

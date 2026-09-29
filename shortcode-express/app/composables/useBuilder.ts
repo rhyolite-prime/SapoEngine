@@ -15,6 +15,7 @@ export interface BuilderCtx {
   edges: Ref<Edge[]>
   entryId: Ref<string | null>
   selectedId: Ref<string | null>
+  hoverId: Ref<string | null>
   dirty: Ref<boolean>
   saving: Ref<boolean>
   lastSavedAt: Ref<string>
@@ -22,7 +23,6 @@ export interface BuilderCtx {
   // actions
   addNode: (kind: NodeKind, position: { x: number; y: number }) => string
   updateConfig: (id: string, patch: Partial<FlowNodeData>) => void
-  renameNode: (id: string, newId: string) => boolean
   removeNode: (id: string) => void
   duplicateNode: (id: string) => void
   setEntry: (id: string) => void

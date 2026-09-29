@@ -7,7 +7,9 @@ import { MarkerType } from '@vue-flow/core'
 import {
   ArrowLeftIcon, DocumentTextIcon, PlayCircleIcon, RocketLaunchIcon,
   CloudArrowUpIcon, WrenchScrewdriverIcon, CheckIcon, ExclamationTriangleIcon,
+  SparklesIcon, QuestionMarkCircleIcon, LightBulbIcon, XMarkIcon, ListBulletIcon,
 } from '@heroicons/vue/24/outline'
+import { chronologicalLayout } from '~/utils/flowExplain'
 import type { Build, Flow, FlowNodeData, NodeKind, Release, ValidationIssue } from '~/../shared/types'
 import type { SapoBlueprint } from '~/../shared/utils/sapo'
 import { graphToBlueprint, paletteByKind, nodeRefId, validateBlueprint } from '~/../shared/utils/sapo'
@@ -34,9 +36,20 @@ const lastSavedAt = ref('')
 const issues = ref<ValidationIssue[]>([])
 const builds = ref<Build[]>([])
 const releases = ref<Release[]>([])
-const rightTab = ref<'node' | 'build'>('node')
+const rightTab = ref<'node' | 'story' | 'build'>('node')
 const showBlueprint = ref(false)
 const showSimulator = ref(false)
+const showShortcuts = ref(false)
+
+// hover explain-card state
+const hoverId = ref<string | null>(null)
+const hoverX = ref(0)
+const hoverY = ref(0)
+let hoverTimer: ReturnType<typeof setTimeout> | undefined
+
+// dismissible tips banner (per browser)
+const tipsDismissed = ref(true)
+onMounted(() => { tipsDismissed.value = localStorage.getItem('sce.builder.tips') === 'off' })
 
 const { screenToFlowCoordinate, fitView } = useVueFlow()
 
@@ -305,6 +318,63 @@ function onEdgesChange(changes: Array<{ type: string }>) {
   if (changes.some((c) => c.type === 'remove')) markDirty()
 }
 
+// --- hover explain card + focus highlighting --------------------------------
+function onNodeMouseEnter({ node, event }: { node: { id: string }; event: MouseEvent }) {
+  clearTimeout(hoverTimer)
+  hoverX.value = event.clientX
+  hoverY.value = event.clientY
+  hoverTimer = setTimeout(() => {
+    hoverId.value = node.id
+    applyEdgeFocus(node.id)
+  }, 260)
+}
+function onNodeMouseLeave() {
+  clearTimeout(hoverTimer)
+  if (!hoverId.value) return
+  hoverId.value = null
+  applyEdgeFocus(null)
+}
+function applyEdgeFocus(id: string | null) {
+  // re-bind the array so Vue Flow picks up the class changes
+  edges.value = edges.value.map((e) => {
+    const hi = !!id && (e.source === id || e.target === id)
+    return { ...e, class: !id ? '' : hi ? 'ef-hi' : 'ef-dim' }
+  })
+}
+
+// --- chronological tidy layout ------------------------------------------------
+function tidyLayout() {
+  if (!nodes.value.length) return
+  hoverId.value = null
+  applyEdgeFocus(null)
+  chronologicalLayout(nodes.value as never, edges.value, entryId.value)
+  markDirty()
+  nextTick(() => fitView({ padding: 0.15, duration: 500 }))
+}
+
+function focusStoryNode(id: string) {
+  selectedId.value = id
+  rightTab.value = 'node'
+  nextTick(() => fitView({ nodes: [id], duration: 450, maxZoom: 1.25, padding: 4 }))
+}
+
+function dismissTips() {
+  tipsDismissed.value = true
+  localStorage.setItem('sce.builder.tips', 'off')
+}
+
+// --- keyboard shortcuts --------------------------------------------------------
+function onKeydown(e: KeyboardEvent) {
+  const t = e.target as HTMLElement
+  if (t && ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); void save() }
+  else if (e.key === '?') { showShortcuts.value = !showShortcuts.value }
+  else if (e.key.toLowerCase() === 'f' && !e.metaKey && !e.ctrlKey) { fitView({ padding: 0.15, duration: 350 }) }
+  else if (e.key === 'Escape') { showShortcuts.value = false }
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => { window.removeEventListener('keydown', onKeydown); clearTimeout(hoverTimer) })
+
 // Provide context to child components
 provideBuilder({
   flowId,
@@ -314,6 +384,7 @@ provideBuilder({
   edges,
   entryId,
   selectedId,
+  hoverId,
   dirty,
   saving,
   lastSavedAt,
@@ -382,6 +453,13 @@ function minimapColor(node: { data?: { kind?: string } }): string {
       <div class="ml-auto flex items-center gap-2">
         <button
           class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+          title="Re-arrange the canvas in execution order (chronological, left to right)"
+          @click="tidyLayout()"
+        >
+          <SparklesIcon class="h-4 w-4 text-brand-600" /> Tidy
+        </button>
+        <button
+          class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50"
           @click="showBlueprint = true"
         >
           <DocumentTextIcon class="h-4 w-4" /> Blueprint JSON
@@ -405,6 +483,13 @@ function minimapColor(node: { data?: { kind?: string } }): string {
           <WrenchScrewdriverIcon class="h-4 w-4" /> Build &amp; validate
         </button>
         <button
+          class="rounded-lg border border-slate-200 p-2 text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+          title="Shortcuts & help (?)"
+          @click="showShortcuts = !showShortcuts"
+        >
+          <QuestionMarkCircleIcon class="h-4 w-4" />
+        </button>
+        <button
           class="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-brand-700 to-brand-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm shadow-brand-200 hover:from-brand-500 hover:to-brand-400"
           @click="rightTab = 'build'"
         >
@@ -419,6 +504,39 @@ function minimapColor(node: { data?: { kind?: string } }): string {
 
       <!-- Canvas -->
       <div class="relative min-w-0 flex-1">
+        <!-- quick tips -->
+        <div v-if="!tipsDismissed" class="absolute inset-x-3 top-3 z-20 flex items-start gap-2.5 rounded-xl border border-brand-200 bg-white/95 px-4 py-2.5 shadow-sm backdrop-blur">
+          <LightBulbIcon class="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
+          <p class="text-[11.5px] leading-relaxed text-slate-600">
+            <b class="text-slate-800">Quick tips:</b>
+            drag nodes in from the left — what you draw is exactly the Sapo blueprint ·
+            <b>hover any node</b> to see what it does and where it leads ·
+            hit <b>Tidy</b> to re-arrange in execution order ·
+            build often, release when green.
+            <button class="ml-1 font-semibold text-brand-700 hover:underline" @click="dismissTips()">Got it</button>
+          </p>
+          <button class="ml-auto shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600" @click="dismissTips()">
+            <XMarkIcon class="h-4 w-4" />
+          </button>
+        </div>
+
+        <!-- shortcuts popover -->
+        <div v-if="showShortcuts" class="absolute right-3 top-3 z-20 w-64 rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
+          <div class="mb-2 flex items-center justify-between">
+            <h4 class="text-xs font-bold uppercase tracking-wide text-slate-500">Shortcuts</h4>
+            <button class="rounded p-1 text-slate-400 hover:bg-slate-100" @click="showShortcuts = false"><XMarkIcon class="h-3.5 w-3.5" /></button>
+          </div>
+          <ul class="space-y-1.5 text-[11.5px] text-slate-600">
+            <li class="flex justify-between"><span>Save the flow</span><kbd class="rounded border border-slate-200 bg-slate-50 px-1.5 font-mono text-[10px]">⌘/Ctrl + S</kbd></li>
+            <li class="flex justify-between"><span>Fit to screen</span><kbd class="rounded border border-slate-200 bg-slate-50 px-1.5 font-mono text-[10px]">F</kbd></li>
+            <li class="flex justify-between"><span>Delete selection</span><kbd class="rounded border border-slate-200 bg-slate-50 px-1.5 font-mono text-[10px]">Del / ⌫</kbd></li>
+            <li class="flex justify-between"><span>Toggle this help</span><kbd class="rounded border border-slate-200 bg-slate-50 px-1.5 font-mono text-[10px]">?</kbd></li>
+          </ul>
+          <p class="mt-2.5 border-t border-slate-100 pt-2 text-[10.5px] leading-relaxed text-slate-400">
+            Hover a node for “what happens here / next”. The Story tab walks the flow in execution order and flags unreachable nodes.
+          </p>
+        </div>
+
         <VueFlow
           v-model:nodes="nodes" v-model:edges="edges"
           :default-viewport="{ zoom: 0.85 }"
@@ -429,6 +547,9 @@ function minimapColor(node: { data?: { kind?: string } }): string {
           @connect="onConnect" @node-click="onNodeClick" @edge-click="onEdgeClick"
           @edges-change="onEdgesChange"
           @node-drag-stop="markDirty" @nodes-change="markDirtyIfNeeded"
+          @node-mouse-enter="onNodeMouseEnter" @node-mouse-leave="onNodeMouseLeave"
+          @node-drag-start="onNodeMouseLeave" @node-double-click="({ node }: any) => focusStoryNode(node.id)"
+          @pane-click="onNodeMouseLeave" @connect-start="onNodeMouseLeave"
         >
           <Background :gap="20" :size="1.4" pattern-color="#cbd5e1" />
           <Controls position="bottom-left" />
@@ -437,6 +558,9 @@ function minimapColor(node: { data?: { kind?: string } }): string {
             <BuilderCanvasNode :id="props.id" :selected="props.selected" />
           </template>
         </VueFlow>
+
+        <!-- hover explain card -->
+        <BuilderNodeHoverCard v-if="hoverId" :node-id="hoverId" :x="hoverX" :y="hoverY" />
 
         <div v-if="!nodes.length" class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
           <div class="rounded-2xl border-2 border-dashed border-slate-300 bg-white/70 px-10 py-8">
@@ -456,12 +580,18 @@ function minimapColor(node: { data?: { kind?: string } }): string {
           >{{ selectedNode ? 'Node settings' : 'Flow settings' }}</button>
           <button
             class="flex-1 border-b-2 px-4 py-3 text-xs font-bold uppercase tracking-wide"
+            :class="rightTab === 'story' ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-400 hover:text-slate-600'"
+            @click="rightTab = 'story'"
+          ><ListBulletIcon class="mr-1 inline h-3.5 w-3.5 -translate-y-px" /> Story</button>
+          <button
+            class="flex-1 border-b-2 px-4 py-3 text-xs font-bold uppercase tracking-wide"
             :class="rightTab === 'build' ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-400 hover:text-slate-600'"
             @click="rightTab = 'build'"
           >Build &amp; release</button>
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto">
           <BuilderInspector v-if="rightTab === 'node'" />
+          <BuilderStoryPanel v-else-if="rightTab === 'story'" @focus="focusStoryNode" @tidy="tidyLayout" />
           <BuilderBuildPanel v-else />
         </div>
       </div>
@@ -475,16 +605,5 @@ function minimapColor(node: { data?: { kind?: string } }): string {
 
 <script lang="ts">
 function markDirtyIfNeeded() { /* handled via node-drag-stop to avoid loops */ }
-function minimapColor(node: { data?: { kind?: string } }): string {
-  const map: Record<string, string> = {
-    menu: '#80004d', input: '#80004d', pin: '#80004d', display: '#80004d', await_event: '#80004d',
-    http: '#0ea5e9', subflow: '#0ea5e9', event: '#0ea5e9',
-    if: '#f59e0b', choice: '#f59e0b', try: '#f59e0b', script: '#f59e0b',
-    assign: '#4bb543', transform: '#4bb543', query: '#4bb543',
-    wait: '#64748b', loop: '#64748b', break: '#64748b', parallel: '#64748b', schedule: '#64748b',
-    end_success: '#f43f5e', end_failure: '#f43f5e',
-  }
-  return map[node.data?.kind ?? ''] ?? '#94a3b8'
-}
 export default { name: 'BuilderPage' }
 </script>

@@ -123,6 +123,7 @@ const validationQuick = [
         <div class="text-sm font-bold text-slate-800">{{ def?.name }}</div>
         <div class="font-mono text-[10px] text-slate-400">type: {{ def?.sapoType }}</div>
       </div>
+      <!-- (hint rendered below the header row) -->
       <button
         v-if="ctx.entryId.value !== selected.id" title="Set as entry node"
         class="rounded-lg p-1.5 text-slate-300 hover:bg-amber-50 hover:text-amber-500" @click="ctx.setEntry(selected.id)"
@@ -136,6 +137,10 @@ const validationQuick = [
         <TrashIcon class="h-4 w-4" />
       </button>
     </div>
+
+    <p v-if="def?.hint" class="mt-2 rounded-lg bg-brand-50/70 px-3 py-2 text-[11px] leading-relaxed text-brand-800 ring-1 ring-brand-100">
+      {{ def.hint }}
+    </p>
 
     <div class="mt-4 space-y-4">
       <!-- identity -->

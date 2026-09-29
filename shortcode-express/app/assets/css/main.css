@@ -55,6 +55,12 @@ body {
 ::-webkit-scrollbar-thumb { @apply bg-slate-300 rounded-full border-2 border-solid border-transparent bg-clip-content; }
 ::-webkit-scrollbar-thumb:hover { @apply bg-slate-400 bg-clip-content; }
 
+/* --- Vue Flow: hover focus edges --- */
+.vue-flow__edge.ef-dim { opacity: 0.12; }
+.vue-flow__edge.ef-hi .vue-flow__edge-path { stroke-width: 2.6px; }
+.vue-flow__edge.ef-hi .vue-flow__edge-textbg { fill: #80004d; }
+.vue-flow__edge.ef-hi .vue-flow__edge-text { fill: #ffffff; font-weight: 700; }
+
 /* --- Vue Flow overrides --- */
 @import "@vue-flow/core/dist/style.css";
 @import "@vue-flow/core/dist/theme-default.css";
