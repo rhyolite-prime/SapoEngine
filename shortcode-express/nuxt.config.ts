@@ -33,6 +33,14 @@ export default defineNuxtConfig({
             'ShortCodeExpress: drag-and-drop builder for USSD services powered by the Sapo DSL Engine. Design menus, plug in APIs, version, release and roll back — all visually.',
         },
       ],
+      link: [
+        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+        { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
+        {
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap',
+        },
+      ],
     },
   },
 })

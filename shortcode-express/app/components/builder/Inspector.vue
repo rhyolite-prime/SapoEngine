@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { XMarkIcon, PlusIcon, StarIcon, DocumentDuplicateIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { XMarkIcon, PlusIcon, StarIcon, DocumentDuplicateIcon, TrashIcon, ClipboardDocumentIcon, ClipboardDocumentCheckIcon } from '@heroicons/vue/24/outline'
 import { uid, paletteByKind } from '~/../shared/utils/sapo'
 import { KIND_ICONS, kindVisual } from '~/utils/nodeVisuals'
 
@@ -10,14 +10,13 @@ const config = computed(() => selected.value?.data.config ?? ({} as Record<strin
 
 const set = (patch: Record<string, unknown>) => selected.value && ctx.updateConfig(selected.value.id, patch as never)
 
-// --- editors state helpers ---
-const idDraft = ref('')
-watch(selected, (s) => { idDraft.value = s?.id ?? '' }, { immediate: true })
-const idError = ref(false)
-function applyRename() {
+// node reference ids are system-assigned (6 digits) — visible, read-only, copyable
+const idCopied = ref(false)
+function copyNodeId() {
   if (!selected.value) return
-  idError.value = !ctx.renameNode(selected.value.id, idDraft.value)
-  if (!idError.value) idDraft.value = selected.value.id
+  navigator.clipboard?.writeText(selected.value.id)
+  idCopied.value = true
+  setTimeout(() => { idCopied.value = false }, 1500)
 }
 
 function addRow(list: 'options' | 'assignments' | 'outputs' | 'headers' | 'queryParams' | 'cases' | 'endOutputs') {
@@ -140,19 +139,23 @@ const validationQuick = [
 
     <div class="mt-4 space-y-4">
       <!-- identity -->
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-[1fr_auto] gap-3">
         <div>
           <label class="mb-1 block text-xs font-semibold text-slate-600">Label</label>
           <input :value="config.label ?? ''" placeholder="Human label" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-brand-400 focus:outline-none" @input="set({ label: ($event.target as HTMLInputElement).value })" />
         </div>
         <div>
           <label class="mb-1 block text-xs font-semibold text-slate-600">Node id</label>
-          <input
-            v-model="idDraft" @blur="applyRename()"
-            class="w-full rounded-lg border px-3 py-2 font-mono text-xs focus:outline-none"
-            :class="idError ? 'border-rose-400' : 'border-slate-200 focus:border-brand-400'"
-          />
-          <p v-if="idError" class="mt-0.5 text-[10px] text-rose-500">id must be unique &amp; lowercase</p>
+          <div
+            class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+            title="System-assigned reference — used as the node id in the Sapo blueprint"
+          >
+            <span class="font-mono text-xs font-bold tracking-wider text-slate-700">#{{ selected.id }}</span>
+            <button class="rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-700" title="Copy node id" @click="copyNodeId">
+              <ClipboardDocumentCheckIcon v-if="idCopied" class="h-3.5 w-3.5 text-emerald-500" />
+              <ClipboardDocumentIcon v-else class="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 

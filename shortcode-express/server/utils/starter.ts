@@ -8,11 +8,12 @@
 // templates), a live HTTP integration, and a charge that fires a webhook.
 // ---------------------------------------------------------------------------
 import { useDb, saveDb, rid, formatRunDate } from './db'
-import { graphToBlueprint, validateBlueprint } from '../../shared/utils/sapo'
+import { graphToBlueprint, validateBlueprint, nodeRefId } from '../../shared/utils/sapo'
 import type { Build, Flow, FlowGraph, Release, ShortCode, User } from '../../shared/types'
 
 export function starterGraph(business: string, code: string): { name: string; description: string; meta: { name: string; version: string; defaults: Record<string, unknown> }; graph: FlowGraph } {
   const slug = business.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'my_service'
+  const g = withSystemRefs(buildGraph(business, code))
   return {
     name: `${business} — USSD service`,
     description: `Starter service auto-generated for ${code}: dynamic menus, a live balance API call and a bundle purchase that fires a payment webhook. Edit it visually — the blueprint stays 1:1.`,
@@ -21,7 +22,25 @@ export function starterGraph(business: string, code: string): { name: string; de
       version: '1.0',
       defaults: { business, code },
     },
-    graph: {
+    graph: g,
+  }
+}
+
+/** every node gets a system-assigned 6-digit reference, like any node added on the canvas */
+function withSystemRefs(graph: FlowGraph): FlowGraph {
+  const taken = new Set<string>()
+  const idMap = new Map<string, string>()
+  for (const n of graph.nodes) idMap.set(n.id, nodeRefId(taken))
+  const idOf = (old: string) => idMap.get(old) ?? old
+  return {
+    entryId: graph.entryId ? idOf(graph.entryId) : null,
+    nodes: graph.nodes.map((n) => ({ ...n, id: idOf(n.id) })),
+    edges: graph.edges.map((e) => ({ ...e, source: idOf(e.source), target: idOf(e.target) })),
+  }
+}
+
+function buildGraph(business: string, code: string): FlowGraph {
+  return {
       entryId: 'welcome',
       nodes: [
         {
@@ -136,7 +155,6 @@ export function starterGraph(business: string, code: string): { name: string; de
         { id: 'e15', source: 'receipt', sourceHandle: 'next', target: 'welcome' },
         { id: 'e16', source: 'charge', sourceHandle: 'error', target: 'cancelled' },
       ],
-    },
   }
 }
 

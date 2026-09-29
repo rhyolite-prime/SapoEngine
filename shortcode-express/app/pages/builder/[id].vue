@@ -10,7 +10,7 @@ import {
 } from '@heroicons/vue/24/outline'
 import type { Build, Flow, FlowNodeData, NodeKind, Release, ValidationIssue } from '~/../shared/types'
 import type { SapoBlueprint } from '~/../shared/utils/sapo'
-import { graphToBlueprint, paletteByKind, uniqueId, validateBlueprint } from '~/../shared/utils/sapo'
+import { graphToBlueprint, paletteByKind, nodeRefId, validateBlueprint } from '~/../shared/utils/sapo'
 import { blueprintToGraph } from '~/../shared/utils/sapo'
 
 definePageMeta({ middleware: 'auth', layout: 'builder' })
@@ -107,23 +107,6 @@ function updateConfig(id: string, patch: Partial<FlowNodeData>) {
   markDirty()
 }
 
-function renameNode(id: string, newIdRaw: string): boolean {
-  const newId = newIdRaw.trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '')
-  if (!newId || (newId !== id && nodes.value.some((n) => n.id === newId))) return false
-  if (newId === id) return true
-  const node = nodes.value.find((n) => n.id === id)
-  if (!node) return false
-  node.id = newId
-  for (const e of edges.value) {
-    if (e.source === id) e.source = newId
-    if (e.target === id) e.target = newId
-  }
-  if (entryId.value === id) entryId.value = newId
-  if (selectedId.value === id) selectedId.value = newId
-  markDirty()
-  return true
-}
-
 function removeNode(id: string) {
   edges.value = edges.value.filter((e) => e.source !== id && e.target !== id)
   const i = nodes.value.findIndex((n) => n.id === id)
@@ -137,7 +120,7 @@ function duplicateNode(id: string) {
   const src = nodes.value.find((n) => n.id === id)
   if (!src) return
   const taken = new Set(nodes.value.map((n) => n.id))
-  const newId = uniqueId(src.id.replace(/_\d+$/, ''), taken)
+  const newId = nodeRefId(taken)
   const copy: typeof src = {
     id: newId,
     type: 'sapo',
@@ -337,7 +320,6 @@ provideBuilder({
   issues,
   addNode,
   updateConfig,
-  renameNode,
   removeNode,
   duplicateNode,
   setEntry,

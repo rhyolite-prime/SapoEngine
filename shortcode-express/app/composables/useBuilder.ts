@@ -1,6 +1,6 @@
 import type { Edge, Node, Connection } from '@vue-flow/core'
 import type { Build, Flow, FlowEdge, FlowGraph, FlowNodeData, NodeKind, Release, ValidationIssue } from '~/../shared/types'
-import { graphToBlueprint, paletteByKind, uid, uniqueId, validateBlueprint, type SapoBlueprint } from '~/../shared/utils/sapo'
+import { graphToBlueprint, paletteByKind, uid, nodeRefId, validateBlueprint, type SapoBlueprint } from '~/../shared/utils/sapo'
 
 export interface CanvasNodeData extends Record<string, unknown> {
   kind: NodeKind
@@ -122,8 +122,7 @@ export function edgeLabel(graph: FlowGraph, e: FlowEdge): string | undefined {
 
 export function newCanvasNode(kind: NodeKind, position: { x: number; y: number }, taken: Set<string>): Node<CanvasNodeData> {
   const def = paletteByKind[kind]
-  const baseName = kind === 'http' ? 'call_api' : def.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')
-  const id = uniqueId(baseName, taken)
+  const id = nodeRefId(taken)
   return {
     id,
     type: 'sapo',

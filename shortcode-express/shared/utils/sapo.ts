@@ -41,6 +41,17 @@ export function uniqueId(base: string, taken: Set<string>): string {
   return id
 }
 
+/**
+ * System-assigned node reference: a 6-digit number, unique within the flow.
+ * Shown to the user read-only — labels are the human-facing name.
+ */
+export function nodeRefId(taken: Set<string>): string {
+  let id = String(100000 + Math.floor(Math.random() * 900000))
+  while (taken.has(id)) id = String(100000 + Math.floor(Math.random() * 900000))
+  taken.add(id)
+  return id
+}
+
 function kv(pairs?: KVPair[]): Record<string, string> {
   const out: Record<string, string> = {}
   for (const p of pairs ?? []) if (p.key.trim()) out[p.key.trim()] = p.value

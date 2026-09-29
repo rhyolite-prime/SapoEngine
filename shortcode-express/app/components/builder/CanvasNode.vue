@@ -78,7 +78,7 @@ const typeLabel = computed(() => {
     <div class="flex items-center gap-2 rounded-t-xl px-3 py-2" :class="visual.head">
       <component :is="icon" class="h-4 w-4 shrink-0" :class="visual.icon" />
       <span class="text-[10px] font-extrabold uppercase tracking-wider" :class="visual.text">{{ typeLabel }}</span>
-      <span class="ml-auto truncate text-[10px] font-semibold text-slate-400">{{ node.id }}</span>
+      <span class="ml-auto rounded bg-black/10 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-slate-600" title="Node reference (read-only)">#{{ node.id }}</span>
       <span v-if="isEntry" title="Entry node — first node in the blueprint" class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-400 text-[8px] font-black text-white">▶</span>
     </div>
 
