@@ -22,6 +22,10 @@ export default defineEventHandler(async (event) => {
     packId?: string
     // port-in from another provider
     provider?: string
+    // optional first-month session pack on a shortcode purchase
+    packId?: string
+    // where the purchase started: 'onboarding' | 'buy' (shapes post-payment links)
+    source?: string
   }>(event)
   const db = useDb()
 
@@ -50,12 +54,19 @@ export default defineEventHandler(async (event) => {
       if (!code) throw createError({ statusCode: 503, statusMessage: 'No codes left in the pool — contact support' })
     }
 
+    // optional: add a session pack to the same webcheckout
+    const pack = body.packId ? SESSION_PACKS.find((p) => p.id === body.packId) : undefined
+    if (body.packId && !pack) throw createError({ statusCode: 400, statusMessage: 'Unknown session pack' })
+
     const setup = SHORTCODE_SETUP_FEES[plan.id] ?? 250
     items = [
       { label: `${plan.name} plan — ${code} (first month)`, detail: `${plan.sessionQuota.toLocaleString()} sessions / month`, qty: 1, unit: 'month', amount: plan.priceMonthly },
       { label: 'Short code activation', detail: 'One-time provisioning fee', qty: 1, unit: 'one-time', amount: setup },
     ]
-    meta = { mode: body.mode ?? 'system', code, label, network, planId: plan.id }
+    if (pack) {
+      items.push({ label: `${pack.label} — ${code}`, detail: 'Optional first-month session pack', qty: 1, unit: 'pack', amount: pack.price })
+    }
+    meta = { mode: body.mode ?? 'system', code, label, network, planId: plan.id, source: body.source === 'onboarding' ? 'onboarding' : 'buy', packId: pack?.id, packSessions: pack?.sessions }
   } else if (body.kind === 'port') {
     // Porting an existing code from another provider: flat monthly fee,
     // unlimited sessions, no setup fee. The interaction URL for the donor
@@ -76,7 +87,7 @@ export default defineEventHandler(async (event) => {
     items = [
       { label: `Port ${code} to ShortCodeExpress — flat monthly`, detail: `Unlimited sessions · porting from ${provider}`, qty: 1, unit: 'month', amount: PORT_FLAT_MONTHLY },
     ]
-    meta = { mode: 'port', code, label, network, provider }
+    meta = { mode: 'port', code, label, network, provider, source: body.source === 'onboarding' ? 'onboarding' : 'buy' }
   } else if (body.kind === 'topup') {
     const pack = SESSION_PACKS.find((p) => p.id === body.packId)
     if (!pack) throw createError({ statusCode: 400, statusMessage: 'Pick a session pack' })

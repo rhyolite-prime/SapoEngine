@@ -73,6 +73,8 @@ const ghs = (n: number) => `GHS ${n.toLocaleString('en-GH', { minimumFractionDig
 const boughtCode = computed(() => String(co.value?.meta.code ?? ''))
 const resultShortcode = computed(() => (result.value?.shortcode ?? null) as Record<string, unknown> | null)
 const resultPort = computed(() => (result.value?.port ?? null) as { token: string; url: string; provider: string } | null)
+const fromBuyFlow = computed(() => co.value?.meta?.source !== 'onboarding')
+const addedSessions = computed(() => Number((result.value?.shortcode as Record<string, unknown> | undefined)?.added ?? 0))
 const donorProvider = computed(() => String(co.value?.meta.provider ?? 'your current provider'))
 const portUrlCopied = ref(false)
 async function copyPortUrl() {
@@ -251,6 +253,7 @@ onUnmounted(() => clearInterval(noteTimer))
               <div class="mt-2 text-sm text-white/80">
                 Starter flow released ({{ (result?.flow as Record<string, unknown>)?.release }}) ·
                 {{ Number(resultShortcode.quota ?? 0).toLocaleString() }} sessions ready
+                <span v-if="addedSessions" class="ml-1 rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-bold">incl. +{{ addedSessions.toLocaleString() }} pack</span>
               </div>
             </div>
             <div v-else-if="resultShortcode" class="mt-5 rounded-2xl bg-success-50 p-5 text-left ring-1 ring-success-100">
@@ -263,6 +266,10 @@ onUnmounted(() => clearInterval(noteTimer))
                 class="flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-brand-200 hover:bg-brand-500">
                 <DevicePhoneMobileIcon class="h-4 w-4" /> Dial {{ resultShortcode?.code }} now — it's live
               </NuxtLink>
+              <NuxtLink v-else-if="co.kind === 'port' && fromBuyFlow" to="/shortcodes"
+                class="flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-amber-200 hover:bg-amber-500">
+                <ArrowsRightLeftIcon class="h-4 w-4" /> Back to your short codes
+              </NuxtLink>
               <NuxtLink v-else-if="co.kind === 'port'" to="/onboarding"
                 class="flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-amber-200 hover:bg-amber-500">
                 <ArrowsRightLeftIcon class="h-4 w-4" /> Track the port on your onboarding
@@ -270,8 +277,8 @@ onUnmounted(() => clearInterval(noteTimer))
               <NuxtLink v-else to="/shortcodes" class="flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-brand-200 hover:bg-brand-500">
                 Back to short codes
               </NuxtLink>
-              <NuxtLink :to="co.kind === 'topup' ? '/billing' : '/onboarding'" class="block text-center text-xs font-semibold text-slate-500 hover:text-slate-800">
-                {{ co.kind === 'topup' ? 'View invoices' : 'Continue onboarding' }}
+              <NuxtLink :to="co.kind === 'topup' ? '/billing' : fromBuyFlow ? '/shortcodes' : '/onboarding'" class="block text-center text-xs font-semibold text-slate-500 hover:text-slate-800">
+                {{ co.kind === 'topup' ? 'View invoices' : fromBuyFlow ? 'Back to short codes' : 'Continue onboarding' }}
               </NuxtLink>
             </div>
           </div>

@@ -28,6 +28,15 @@ async function activate(sc: Row) {
   await refresh()
 }
 
+const copiedPortLink = ref('')
+async function copyPortLink(token: string) {
+  try {
+    await navigator.clipboard.writeText(`${window.location.origin}/port/${token}`)
+    copiedPortLink.value = token
+    setTimeout(() => (copiedPortLink.value = ''), 1600)
+  } catch {}
+}
+
 async function changePlan(sc: Row, plan: string) {
   await $fetch(`/api/shortcodes/${sc.id}`, { method: 'PATCH', body: { plan } })
   await refresh()
@@ -46,7 +55,7 @@ const decorated = computed<RowFull[]>(() => (rows.value ?? []).map((r) => ({ ...
         <h1 class="text-2xl font-bold text-slate-900">Short codes</h1>
         <p class="mt-1 text-sm text-slate-500">Codes provisioned on the mobile networks, with per-code session quotas. ★ = yours.</p>
       </div>
-      <NuxtLink to="/onboarding" class="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">
+      <NuxtLink to="/shortcodes/new" class="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">
         <PlusIcon class="h-4 w-4" /> Buy a short code
       </NuxtLink>
     </div>
@@ -94,7 +103,12 @@ const decorated = computed<RowFull[]>(() => (rows.value ?? []).map((r) => ({ ...
         <!-- porting progress notice -->
         <div v-if="sc.port && !sc.port.approvedAt && !sc.port.rejectedAt" class="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-3 py-2.5 ring-1 ring-amber-100">
           <span class="relative flex h-2 w-2"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span><span class="relative inline-flex h-2 w-2 rounded-full bg-amber-500"></span></span>
-          <span class="text-xs font-semibold text-amber-800">Waiting for {{ sc.port.provider }} — share your porting link from onboarding.</span>
+          <span class="text-xs font-semibold text-amber-800">Waiting for {{ sc.port.provider }} — send them the private porting link:</span>
+          <a :href="`/port/${sc.port.token}`" target="_blank" rel="noopener"
+            class="max-w-[240px] truncate rounded-lg bg-white px-2 py-1 font-mono text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-50">
+            /port/{{ sc.port.token.slice(0, 10) }}…
+          </a>
+          <button class="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-amber-500" @click="copyPortLink(sc.port.token)">Copy link</button>
         </div>
         <div v-else-if="sc.port?.rejectedAt" class="mt-3 rounded-xl bg-rose-50 px-3 py-2.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-100">
           Port declined by {{ sc.port.provider }}: {{ sc.port.rejectedReason ?? 'no reason given' }}

@@ -96,9 +96,16 @@ export default defineEventHandler(async (event) => {
       assignedBy: co.meta.mode === 'user' ? 'user' : 'system',
       setupFeePaid: SHORTCODE_SETUP_FEES[plan.id] ?? 250,
     }
+    // optional first-month session pack bought in the same checkout
+    let addedSessions = 0
+    if (co.meta.packId) {
+      const pack = SESSION_PACKS.find((p) => p.id === String(co.meta.packId))
+      addedSessions = Number(co.meta.packSessions ?? pack?.sessions ?? 0)
+      sc.sessionsQuota += addedSessions
+    }
     db.shortcodes.push(sc)
     const flow = provisionStarterFlow(db, fresh, sc) // flow + build + release v1.0.0 + binding
-    result.shortcode = { id: sc.id, code: sc.code, plan: plan.id, quota: sc.sessionsQuota }
+    result.shortcode = { id: sc.id, code: sc.code, plan: plan.id, quota: sc.sessionsQuota, ...(addedSessions ? { added: addedSessions } : {}) }
     result.flow = { id: flow.id, name: flow.name, release: flow.releases[0]?.tag }
     result.dialable = true
 
