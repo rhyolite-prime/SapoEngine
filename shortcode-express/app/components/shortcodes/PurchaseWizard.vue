@@ -53,7 +53,8 @@ const packId = ref('') // optional first-month session boost
 const creating = ref(false)
 const wizardError = ref('')
 
-const PROVIDERS = ['Hubtel', 'Nalo', "Africa's Talking"]
+// fixed provider list — picked from a dropdown, no free text
+const PROVIDERS = ['Hubtel', 'Nalo', "Africa's Talking", 'Korba', 'BPC']
 
 let debounce: ReturnType<typeof setTimeout> | undefined
 watch(customCode, (v) => {
@@ -155,7 +156,7 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
           <span class="text-sm font-bold text-slate-900">{{ aggregator ? "Port a client's code" : 'Port a code I own' }}</span>
         </div>
         <p class="mt-2 text-xs leading-relaxed text-slate-500">
-          Moving from Hubtel, Nalo, Africa's Talking or any other provider? Bring the code along.
+          Moving providers? Bring your existing code along — no downtime for your subscribers.
         </p>
         <p class="mt-1.5 text-[11px] font-semibold text-brand-600">Flat GHS {{ portFlat }}/mo · unlimited sessions</p>
       </button>
@@ -176,18 +177,15 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
             {{ portAvailability?.message ?? 'Type the code exactly as your subscribers dial it.' }}
           </span>
         </label>
-        <div>
+        <label class="block">
           <span class="mb-1 block text-xs font-semibold text-slate-600">{{ aggregator ? "The code's current provider" : 'Your current provider' }}</span>
-          <div class="flex flex-wrap gap-1.5">
-            <button v-for="p in PROVIDERS" :key="p" type="button"
-              class="rounded-full border px-2.5 py-1 text-[11px] font-bold transition"
-              :class="donorProvider === p ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-500 hover:border-brand-300 hover:text-brand-600'"
-              @click="donorProvider = p">{{ p }}</button>
-          </div>
-          <input v-model="donorProvider" placeholder="…or type any provider's name"
-            class="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+          <select v-model="donorProvider"
+            class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100">
+            <option value="" disabled>Select a provider…</option>
+            <option v-for="p in PROVIDERS" :key="p" :value="p">{{ p }}</option>
+          </select>
           <span class="mt-1 block text-xs text-slate-500">Who routes this code today. We'll give you a link to send them.</span>
-        </div>
+        </label>
       </div>
     </div>
 
