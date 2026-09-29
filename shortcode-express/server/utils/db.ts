@@ -240,13 +240,60 @@ export { formatRunDate }
 
 let cache: DB | null = null
 
+/**
+ * Upgrade a persisted DB to the current shape. Deployments that ran older
+ * builds keep their .data/db.json around — backfill anything added since
+ * (e.g. `checkouts` / `webhookDeliveries` arrived with the webcheckout
+ * release, `apiKeys` with developer signup) instead of crashing on it.
+ */
+function migrateDb(loaded: Partial<DB>): { db: DB; changed: boolean } {
+  let changed = false
+  const ensureArray = <T>(value: T[] | undefined): T[] => {
+    if (Array.isArray(value)) return value
+    changed = true
+    return []
+  }
+
+  const db = loaded as DB
+  db.users = ensureArray(db.users)
+  for (const u of db.users) {
+    if (!Array.isArray(u.apiKeys)) { u.apiKeys = []; changed = true }
+  }
+  db.flows = ensureArray(db.flows)
+  db.shortcodes = ensureArray(db.shortcodes)
+  db.members = ensureArray(db.members)
+  db.invites = ensureArray(db.invites)
+  db.invoices = ensureArray(db.invoices)
+  db.checkouts = ensureArray(db.checkouts)
+  db.webhookDeliveries = ensureArray(db.webhookDeliveries)
+
+  if (!db.stats || typeof db.stats !== 'object') { db.stats = { days: [], networks: {}, hourlyToday: [], topFlows: [] }; changed = true }
+  if (!Array.isArray(db.stats.days)) { db.stats.days = []; changed = true }
+  if (!db.stats.networks || typeof db.stats.networks !== 'object') { db.stats.networks = {}; changed = true }
+  if (!Array.isArray(db.stats.hourlyToday) || db.stats.hourlyToday.length !== 24) {
+    db.stats.hourlyToday = Array.from({ length: 24 }, (_, i) => db.stats.hourlyToday?.[i] ?? 0)
+    changed = true
+  }
+  if (!Array.isArray(db.stats.topFlows)) { db.stats.topFlows = []; changed = true }
+
+  if (!db.business || typeof db.business !== 'object') {
+    db.business = { name: 'ShortCodeExpress', currency: 'GHS', billingEmail: 'billing@example.com', country: 'Ghana' }
+    changed = true
+  }
+
+  return { db, changed }
+}
+
 export function useDb(): DB {
   if (cache) return cache
   if (fs.existsSync(DB_FILE)) {
     try {
-      cache = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8')) as DB
+      const loaded = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8')) as Partial<DB>
+      const { db, changed } = migrateDb(loaded)
       // plans are code-defined; keep them fresh
-      cache.plans = PLANS
+      db.plans = PLANS
+      cache = db
+      if (changed) saveDb(cache) // persist the upgrade once
       return cache
     } catch {
       // corrupted file -> reseed
