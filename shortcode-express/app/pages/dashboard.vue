@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, SignalIcon, BanknotesIcon, CheckBadgeIcon, ClockIcon } from '@heroicons/vue/24/outline'
 
-definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Dashboard · ShortCodeExpress' })
 const { refresh } = useAuth()
 refresh()

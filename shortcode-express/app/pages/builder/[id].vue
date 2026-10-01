@@ -15,7 +15,7 @@ import type { SapoBlueprint } from '~/../shared/utils/sapo'
 import { graphToBlueprint, paletteByKind, nodeRefId, validateBlueprint } from '~/../shared/utils/sapo'
 import { blueprintToGraph } from '~/../shared/utils/sapo'
 
-definePageMeta({ middleware: 'auth', layout: 'builder' })
+definePageMeta({ layout: 'builder' })
 
 const route = useRoute()
 const flowId = route.params.id as string

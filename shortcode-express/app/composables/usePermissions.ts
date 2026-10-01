@@ -15,7 +15,7 @@ export const usePermissions = () => {
         return;
       }
 
-      const request = indexedDB.open('GpakCrmAuthDB', 1);
+      const request = indexedDB.open('ShortCodeExpressAuthDB', 1);
 
       request.onupgradeneeded = (event: any) => {
         const db = event.target.result;

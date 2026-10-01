@@ -48,8 +48,9 @@ export interface BusinessAuthModel {
     encryptedAccessToken: string;
     expireInSeconds: number;
     expiresOn: string;
-    userId: number
-    
+    userId: number;
+    permissions?: string[];
+
 }
 
 export interface BaseFilter extends Record<string, any> {

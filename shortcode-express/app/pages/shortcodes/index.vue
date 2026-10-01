@@ -2,7 +2,6 @@
 import { PlusIcon, SignalIcon, DevicePhoneMobileIcon, BoltSlashIcon, WrenchScrewdriverIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
 import type { Plan, SessionPack, ShortCode } from '~/../shared/types'
 
-definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Short codes · ShortCodeExpress' })
 
 interface Row extends ShortCode { planDetails?: Plan; flowName: string | null }

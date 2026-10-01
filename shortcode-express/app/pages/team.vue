@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { UserPlusIcon, EnvelopeIcon, TrashIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
 
-definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Team · ShortCodeExpress' })
 
 interface Member { id: string; name: string; email: string; role: 'owner' | 'editor' | 'viewer'; joinedAt: string; status: string }

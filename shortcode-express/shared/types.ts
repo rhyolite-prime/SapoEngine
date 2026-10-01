@@ -283,6 +283,14 @@ export interface User {
   company?: string
   /** how the workspace is used — picked during onboarding */
   useCase?: 'merchant' | 'aggregator'
+  /** identity issued by the Rhyolite Prime ERP (ABP) on signup/sign-in */
+  erp?: {
+    userId: number
+    tenant?: string
+    accessToken: string
+    encryptedAccessToken?: string
+    expiresAt: string
+  }
   createdAt?: string
   apiKeys?: ApiKey[]
   webhook?: WebhookEndpoint

@@ -7,7 +7,6 @@ import {
 // through onboarding. No checklist, no account step: pick a code (system,
 // your own, or port from Hubtel / Nalo / Africa's Talking), optionally add a
 // session pack, and pay.
-definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Get a short code · ShortCodeExpress' })
 
 const me = await useRequestFetch()<{ id: string; useCase?: 'merchant' | 'aggregator' | null } | null>('/api/auth/me').catch(() => null)

@@ -5,7 +5,6 @@ import {
 } from '@heroicons/vue/24/outline'
 import type { ApiKey, ShortCode, WebhookDelivery, WebhookEndpoint } from '~/../shared/types'
 
-definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Developers · ShortCodeExpress' })
 
 interface WebhookEventDef { id: string; label: string; desc: string }

@@ -2,7 +2,6 @@
 import { BanknotesIcon, DocumentTextIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 import type { Invoice, Plan } from '~/../shared/types'
 
-definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Billing & quotas · ShortCodeExpress' })
 
 interface Usage {

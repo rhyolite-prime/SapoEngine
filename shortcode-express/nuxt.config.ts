@@ -1,11 +1,27 @@
 import tailwindcss from '@tailwindcss/vite'
 
+// Rhyolite Prime ERP (ABP). Browser-side ERP service calls (httpClient) go
+// through the /erp proxy below so the ERP never has to allow CORS; the
+// server-side auth proxy uses the same base via ERP_API_BASE.
+const ERP_API_BASE = process.env.ERP_API_BASE ?? 'https://erp-api.rhyoliteprime.com'
+
 export default defineNuxtConfig({
   compatibilityDate: '2026-07-01',
   devtools: { enabled: false },
   ssr: true,
 
   css: ['~/assets/css/main.css'],
+
+  runtimeConfig: {
+    public: {
+      proxyApiBaseURL: '/erp/api',
+      proxyApiAuthBaseURL: '/erp/api',
+    },
+  },
+
+  routeRules: {
+    '/erp/**': { proxy: ERP_API_BASE + '/**' },
+  },
 
   vite: {
     plugins: [tailwindcss()],

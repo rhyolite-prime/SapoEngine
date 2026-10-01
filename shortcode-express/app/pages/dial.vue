@@ -2,7 +2,6 @@
 import { SignalIcon, ArrowPathIcon, BoltIcon, ArrowPathRoundedSquareIcon } from '@heroicons/vue/24/outline'
 import type { WebhookDelivery } from '~/../shared/types'
 
-definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Live dialer · ShortCodeExpress' })
 
 interface DialResponse {

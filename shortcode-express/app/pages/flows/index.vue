@@ -3,7 +3,6 @@ import { PlusIcon, PencilSquareIcon, DocumentDuplicateIcon, TrashIcon, ArrowUpTr
 import type { SapoBlueprint } from '~/../shared/types'
 import { blueprintToGraph } from '~/../shared/utils/sapo'
 
-definePageMeta({ middleware: 'auth' })
 useHead({ title: 'USSD flows · ShortCodeExpress' })
 
 interface FlowRow {

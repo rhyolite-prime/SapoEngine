@@ -7,7 +7,6 @@ import {
 } from '@heroicons/vue/24/outline'
 import type { SessionPack } from '~/../shared/types'
 
-definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Go live in 5 minutes · ShortCodeExpress' })
 
 interface OnboardingStatus {
