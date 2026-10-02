@@ -47,7 +47,7 @@ const donorProvider = ref('')
 const portAvailability = ref<null | { available: boolean; reason?: string; message: string }>(null)
 const portChecking = ref(false)
 const label = ref('')
-const network = ref('MTN')
+const network = ref('all')
 const planId = ref('starter')
 const packId = ref('') // optional first-month session boost
 const creating = ref(false)
@@ -198,7 +198,7 @@ const ghs = (n: number) => `GHS ${n.toLocaleString()}`
       <label class="block">
         <span class="mb-1 block text-xs font-semibold text-slate-600">Network</span>
         <select v-model="network" class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand-500">
-          <option>MTN</option><option>Vodafone</option><option>AirtelTigo</option>
+          <option value="all">All Networks</option><option>MTN</option><option>Vodafone</option><option>AirtelTigo</option>
         </select>
       </label>
     </div>
