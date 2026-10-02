@@ -2,7 +2,7 @@
 import { RocketLaunchIcon, KeyIcon, SignalIcon, BoltIcon, CheckBadgeIcon, BuildingOffice2Icon, EnvelopeIcon, PhoneIcon, LockClosedIcon } from '@heroicons/vue/24/outline'
 import type { User } from '~/../shared/types'
 
-definePageMeta({ layout: 'default' })
+definePageMeta({ layout: 'public' })
 useHead({ title: 'Create your workspace · ShortCodeExpress' })
 
 // ERP tenant signup: businessname / adminEmailAddress / phoneNo / Password

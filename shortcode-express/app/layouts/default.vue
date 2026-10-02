@@ -4,8 +4,15 @@ import {
   ArrowLeftOnRectangleIcon, BuildingOffice2Icon, CodeBracketIcon, RocketLaunchIcon,
 } from '@heroicons/vue/24/outline'
 
+// Authenticated app shell. The global route guard guarantees every page that
+// uses this layout has a session, so the menus are safe to show here — and
+// only here.
 const route = useRoute()
-const { user, logout } = useAuth()
+const { user, refresh, logout } = useAuth()
+
+// resolve the signed-in user for the workspace chip + footer (SSR forwards
+// the session cookie via useRequestFetch inside refresh())
+if (!user.value) await refresh()
 
 const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: ChartBarIcon },
@@ -15,12 +22,14 @@ const nav = [
   { to: '/team', label: 'Team', icon: UsersIcon },
   { to: '/developers', label: 'Developers', icon: CodeBracketIcon },
 ]
+
+const workspace = computed(() => user.value?.company || user.value?.erp?.tenant || 'Rhyolite Prime')
 </script>
 
 <template>
   <div class="min-h-screen">
     <aside class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-ink-950 text-slate-300">
-      <NuxtLink to="/" class="flex items-center gap-3 px-5 pb-5 pt-6">
+      <NuxtLink to="/dashboard" class="flex items-center gap-3 px-5 pb-5 pt-6">
         <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-brand-400 shadow-lg shadow-brand-900/40">
           <svg viewBox="0 0 24 24" class="h-6 w-6 text-white" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <path d="M4 7h16M4 12h10M4 17h7"></path><circle cx="18.5" cy="15.5" r="2.5"></circle>
@@ -34,7 +43,7 @@ const nav = [
 
       <div class="mx-5 mb-4 flex items-center gap-2 rounded-lg bg-ink-900 px-3 py-2 text-xs text-slate-400 ring-1 ring-white/5">
         <BuildingOffice2Icon class="h-4 w-4 text-brand-400" />
-        <span class="truncate font-medium text-slate-200">Rhyolite Prime</span>
+        <span class="truncate font-medium text-slate-200">{{ workspace }}</span>
         <span class="ml-auto rounded bg-success-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-success-400">Ghana</span>
       </div>
 
@@ -65,6 +74,11 @@ const nav = [
           <button title="Sign out" class="rounded-lg p-1.5 text-slate-500 hover:bg-white/5 hover:text-slate-200" @click="logout()">
             <ArrowLeftOnRectangleIcon class="h-5 w-5"></ArrowLeftOnRectangleIcon>
           </button>
+        </div>
+      </div>
+      <div v-else class="border-t border-white/5 p-4">
+        <div class="flex items-center gap-2 text-xs text-slate-500">
+          <span class="h-2 w-2 animate-pulse rounded-full bg-slate-600"></span> Restoring session…
         </div>
       </div>
     </aside>

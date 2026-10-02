@@ -1,4 +1,5 @@
 <script setup lang="ts">
+definePageMeta({ layout: 'public' })
 import { ShieldCheckIcon, DevicePhoneMobileIcon, CreditCardIcon, CheckCircleIcon, XCircleIcon, SignalIcon, ArrowPathIcon, ArrowsRightLeftIcon, LinkIcon, ClipboardDocumentIcon } from '@heroicons/vue/24/outline'
 import type { CheckoutSession } from '~/../shared/types'
 

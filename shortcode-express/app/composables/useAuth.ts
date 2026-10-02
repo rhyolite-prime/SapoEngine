@@ -28,7 +28,8 @@ export const useAuth = () => {
 
   async function refresh() {
     if (!sessionCookie.value) { user.value = null; return }
-    user.value = await $fetch<User>('/api/auth/me')
+    // useRequestFetch forwards the session cookie during SSR too
+    user.value = await useRequestFetch()<User>('/api/auth/me')
   }
 
   /** demo/offline member picker — no ERP round-trip */

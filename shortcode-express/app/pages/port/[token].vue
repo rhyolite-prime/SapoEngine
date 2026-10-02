@@ -1,4 +1,5 @@
 <script setup lang="ts">
+definePageMeta({ layout: 'public' })
 import {
   SignalIcon, ShieldCheckIcon, CheckCircleIcon, XCircleIcon, ArrowsRightLeftIcon,
   BuildingOffice2Icon, ClockIcon, ArrowPathIcon, DocumentDuplicateIcon,

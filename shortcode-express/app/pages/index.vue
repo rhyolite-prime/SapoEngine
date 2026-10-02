@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { ArrowRightIcon, BoltIcon, CubeTransparentIcon, ClockIcon, BanknotesIcon, UsersIcon } from '@heroicons/vue/24/outline'
 
+definePageMeta({ layout: 'public' })
 useHead({ title: 'ShortCodeExpress — Build USSD services visually' })
+
+// signed-in visitors go straight to their workspace
+const authed = computed(() => !!useCookie('sce_user').value)
 </script>
 
 <template>
@@ -13,12 +17,19 @@ useHead({ title: 'ShortCodeExpress — Build USSD services visually' })
         </div>
         <span class="text-lg font-bold text-white">ShortCode<span class="text-brand-400">Express</span></span>
       </div>
-      <NuxtLink to="/signup" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">
-        Start free — live in 5 min
-      </NuxtLink>
-      <NuxtLink to="/login" class="rounded-lg px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white">
-        Sign in
-      </NuxtLink>
+      <template v-if="authed">
+        <NuxtLink to="/dashboard" class="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">
+          Open dashboard <ArrowRightIcon class="h-4 w-4" />
+        </NuxtLink>
+      </template>
+      <template v-else>
+        <NuxtLink to="/signup" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500">
+          Start free — live in 5 min
+        </NuxtLink>
+        <NuxtLink to="/login" class="rounded-lg px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white">
+          Sign in
+        </NuxtLink>
+      </template>
     </header>
 
     <section class="relative mx-auto max-w-6xl px-6 pb-20 pt-16 text-center">

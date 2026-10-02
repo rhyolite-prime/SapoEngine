@@ -2,7 +2,7 @@
 import { ShieldCheckIcon, ArrowLeftIcon, BuildingOffice2Icon, UserIcon, LockClosedIcon } from '@heroicons/vue/24/outline'
 import type { User } from '~/../shared/types'
 
-definePageMeta({ layout: 'default' })
+definePageMeta({ layout: 'public' })
 useHead({ title: 'Sign in · ShortCodeExpress' })
 
 const route = useRoute()
