@@ -34,6 +34,12 @@ onMounted(async () => {
   setupFees.value = p.setupFees
   portFlat.value = p.portFlatMonthly
   await shuffleCode()
+  // workspace default network (Settings page) prefills the form
+  try {
+    const me = await $api<{ settings?: { defaultNetwork?: string } }>('/api/auth/me')
+    const saved = me?.settings?.defaultNetwork
+    if (saved && ['all', 'MTN', 'Vodafone', 'AirtelTigo'].includes(saved)) network.value = saved
+  } catch { /* anonymous/preference-free is fine */ }
 })
 
 // --- wizard state ------------------------------------------------------------

@@ -283,6 +283,8 @@ export interface User {
   company?: string
   /** how the workspace is used — picked during onboarding */
   useCase?: 'merchant' | 'aggregator'
+  /** workspace preferences (Settings page) */
+  settings?: { defaultNetwork?: string }
   /** identity issued by the Rhyolite Prime ERP (ABP) on signup/sign-in */
   erp?: {
     userId: number

@@ -2,6 +2,7 @@
 import {
   ChartBarIcon, Squares2X2Icon, SignalIcon, CreditCardIcon, UsersIcon,
   ArrowLeftOnRectangleIcon, BuildingOffice2Icon, CodeBracketIcon, RocketLaunchIcon,
+  Cog6ToothIcon,
 } from '@heroicons/vue/24/outline'
 
 // Authenticated app shell. The global route guard guarantees every page that
@@ -21,6 +22,7 @@ const nav = [
   { to: '/billing', label: 'Billing & quotas', icon: CreditCardIcon },
   { to: '/team', label: 'Team', icon: UsersIcon },
   { to: '/developers', label: 'Developers', icon: CodeBracketIcon },
+  { to: '/settings', label: 'Settings', icon: Cog6ToothIcon },
 ]
 
 const workspace = computed(() => user.value?.company || user.value?.erp?.tenant || 'Rhyolite Prime')
@@ -62,7 +64,7 @@ const workspace = computed(() => user.value?.company || user.value?.erp?.tenant 
         </NuxtLink>
       </nav>
 
-      <div v-if="user" class="border-t border-white/5 p-4">
+      <NuxtLink v-if="user" to="/profile" class="border-t border-white/5 p-4 transition hover:bg-white/5" title="Your profile">
         <div class="flex items-center gap-3">
           <div class="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white" :style="{ background: `hsl(${user.avatarHue} 65% 45%)` }">
             {{ user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2) }}
@@ -71,11 +73,11 @@ const workspace = computed(() => user.value?.company || user.value?.erp?.tenant 
             <div class="truncate text-sm font-semibold text-slate-100">{{ user.name }}</div>
             <div class="truncate text-[11px] text-slate-500">{{ user.title }}</div>
           </div>
-          <button title="Sign out" class="rounded-lg p-1.5 text-slate-500 hover:bg-white/5 hover:text-slate-200" @click="logout()">
+          <button title="Sign out" class="rounded-lg p-1.5 text-slate-500 hover:bg-white/5 hover:text-slate-200" @click.stop.prevent="logout()">
             <ArrowLeftOnRectangleIcon class="h-5 w-5"></ArrowLeftOnRectangleIcon>
           </button>
         </div>
-      </div>
+      </NuxtLink>
       <div v-else class="border-t border-white/5 p-4">
         <div class="flex items-center gap-2 text-xs text-slate-500">
           <span class="h-2 w-2 animate-pulse rounded-full bg-slate-600"></span> Restoring session…

@@ -9,6 +9,7 @@ export const ERP_BASE = (process.env.ERP_API_BASE ?? 'https://erp-api.rhyolitepr
 export const ERP_PATHS = {
   signup: '/api/services/app/Tenant/PrivateCreateSignup',
   login: '/api/tokenauth/authenticate',
+  changePassword: '/api/services/app/Account/ChangePassword',
 }
 
 /** ABP wraps everything: { result, success, error: { message }, __abp } */
@@ -32,12 +33,15 @@ export interface ErpResponse {
   error?: string
 }
 
-export async function erpRequest(path: string, body: Record<string, unknown>): Promise<ErpResponse> {
+export async function erpRequest(path: string, body: Record<string, unknown>, bearerToken?: string): Promise<ErpResponse> {
   let res: Response
   try {
     res = await fetch(ERP_BASE + path, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        ...(bearerToken ? { authorization: `Bearer ${bearerToken}` } : {}),
+      },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(10_000),
     })
